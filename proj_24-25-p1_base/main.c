@@ -17,11 +17,19 @@ int main() {
   while (1) {
     char keys[MAX_WRITE_SIZE][MAX_STRING_SIZE] = {0};
     char values[MAX_WRITE_SIZE][MAX_STRING_SIZE] = {0};
+    char dirpath [MAX_JOB_FILE_NAME_SIZE];
+    int MAX_BACKUPS;
+    char input[300]; //Alterar depois
     unsigned int delay;
     size_t num_pairs;
 
     printf("> ");
     fflush(stdout);
+
+    fgets(input,300,stdin);
+    sscanf(input, "%s%d",dirpath,&MAX_BACKUPS);
+    printf("Path: %s\n", dirpath);
+    printf("Max Backups: %d\n", MAX_BACKUPS);
 
     switch (get_next(STDIN_FILENO)) {
       case CMD_WRITE:
