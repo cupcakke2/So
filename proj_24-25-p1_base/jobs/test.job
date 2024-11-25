@@ -1,5 +1,5 @@
 READ [c1] 
-WRITE [(c1,v1)(chave2,valor-exemplo)] 
+WRITE [(c1,v1)(chave2,valor-exemplo)]  
 READ [chave2] 
 WRITE [(chave2,valor-exemplo2)(umaChave,umValor)] 
 BACKUP 

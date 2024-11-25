@@ -8,6 +8,9 @@
 #include "operations.h"
 #include <errno.h>
 #include <string.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 
 
 int main() {
@@ -21,8 +24,7 @@ int main() {
     char keys[MAX_WRITE_SIZE][MAX_STRING_SIZE] = {0};
     char values[MAX_WRITE_SIZE][MAX_STRING_SIZE] = {0};
     char dirpath [MAX_JOB_FILE_NAME_SIZE]; //Duvido
-    char file_name [MAX_JOB_FILE_NAME_SIZE];
-    char out_name [MAX_JOB_FILE_NAME_SIZE];
+    char temp [MAX_JOB_FILE_NAME_SIZE];
     int MAX_BACKUPS;
     char input[300]; //Alterar depois
     unsigned int delay;
@@ -55,37 +57,27 @@ int main() {
       if (strcmp(dp->d_name,".") == 0 || strcmp(dp->d_name,"..") == 0)
         continue;
 
-      strcat(file_name,dirpath);
-      strcat(file_name,"/");
-      strcat(file_name,dp->d_name);
-
-      strncpy(out_name,dp->d_name,strlen(dp->d_name)-3);
-      strcat(out_name,"out");
-
-
-      printf("in : %s\n",file_name);
-
       
-      FILE *fd = fopen(file_name, "r");
-      FILE *fd2 = fopen(out_name, "w");
+      int fd = open("test.job", O_RDONLY);
 
-      
-
-      if (fd == NULL) {
-        perror("open error");
-        return EXIT_FAILURE;
+      if (fd < 0) {
+          perror("open error");
+          return EXIT_FAILURE;
       }
 
-      if (fd2 == NULL) {
-        perror("open error in .out files");
-        return EXIT_FAILURE;
+      printf("yipee");
+
+      int fd2 = open("jobs/test.out", O_CREAT | O_TRUNC | O_WRONLY, S_IRUSR | S_IWUSR);
+      if (fd2 < 0) {
+          perror("open error");
+          return EXIT_FAILURE;
       }
 
-      printf("yay\n");
-      strcpy(file_name,"");
-      fclose(fd);
-      fclose(fd2);
-      
+
+      printf("%s\n", dp->d_name);
+      close(fd);
+      close(fd2);
+  
     }
   
 
