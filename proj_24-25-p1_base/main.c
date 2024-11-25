@@ -2,10 +2,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-
+#include <dirent.h>
 #include "constants.h"
 #include "parser.h"
 #include "operations.h"
+#include <errno.h>
+#include <string.h>
+
 
 int main() {
 
@@ -17,19 +20,74 @@ int main() {
   while (1) {
     char keys[MAX_WRITE_SIZE][MAX_STRING_SIZE] = {0};
     char values[MAX_WRITE_SIZE][MAX_STRING_SIZE] = {0};
-    char dirpath [MAX_JOB_FILE_NAME_SIZE];
+    char dirpath [MAX_JOB_FILE_NAME_SIZE]; //Duvido
+    char file_name [MAX_JOB_FILE_NAME_SIZE];
+    char out_name [MAX_JOB_FILE_NAME_SIZE];
     int MAX_BACKUPS;
     char input[300]; //Alterar depois
     unsigned int delay;
     size_t num_pairs;
+    DIR* dirp;
+    struct dirent *dp;
 
     printf("> ");
     fflush(stdout);
 
     fgets(input,300,stdin);
     sscanf(input, "%s%d",dirpath,&MAX_BACKUPS);
-    printf("Path: %s\n", dirpath);
-    printf("Max Backups: %d\n", MAX_BACKUPS);
+  
+    dirp = opendir(dirpath);
+
+    
+    if (dirp == NULL){
+      perror("Failure at opening directory"); //ALTERAR
+      return EXIT_FAILURE;
+    }
+    
+   
+    for (;;){
+      errno = 0;
+
+      dp = readdir(dirp);
+      if (dp == NULL)
+        break;
+
+      if (strcmp(dp->d_name,".") == 0 || strcmp(dp->d_name,"..") == 0)
+        continue;
+
+      strcat(file_name,dirpath);
+      strcat(file_name,"/");
+      strcat(file_name,dp->d_name);
+
+      strncpy(out_name,dp->d_name,strlen(dp->d_name)-3);
+      strcat(out_name,"out");
+
+
+      printf("in : %s\n",file_name);
+
+      
+      FILE *fd = fopen(file_name, "r");
+      FILE *fd2 = fopen(out_name, "w");
+
+      
+
+      if (fd == NULL) {
+        perror("open error");
+        return EXIT_FAILURE;
+      }
+
+      if (fd2 == NULL) {
+        perror("open error in .out files");
+        return EXIT_FAILURE;
+      }
+
+      printf("yay\n");
+      strcpy(file_name,"");
+      fclose(fd);
+      fclose(fd2);
+      
+    }
+  
 
     switch (get_next(STDIN_FILENO)) {
       case CMD_WRITE:
