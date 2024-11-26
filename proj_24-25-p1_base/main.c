@@ -13,8 +13,6 @@
 #include <fcntl.h>
 
 
-
-
 int main() {
 
   if (kvs_init()) {
@@ -182,8 +180,5 @@ int main() {
       close(fd2);
       
     }
-  
-
-    
   }
 }
