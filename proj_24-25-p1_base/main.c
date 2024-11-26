@@ -87,8 +87,9 @@ int main() {
         case CMD_WRITE:
           printf("writing\n");
           num_pairs = parse_write(fd, keys, values, MAX_WRITE_SIZE, MAX_STRING_SIZE);
+          printf("num_pairs: %ld\n",num_pairs);
           if (num_pairs == 0) {
-            fprintf(stderr, "Invalid command. See HELP for usage\n");
+            fprintf(stderr, "Invalid command while writing. See HELP for usage\n");
             continue;
           }
 
@@ -103,7 +104,7 @@ int main() {
           num_pairs = parse_read_delete(fd, keys, MAX_WRITE_SIZE, MAX_STRING_SIZE);
 
           if (num_pairs == 0) {
-            fprintf(stderr, "Invalid command. See HELP for usage\n");
+            fprintf(stderr, "Invalid command while reading. See HELP for usage\n");
             continue;
           }
 
@@ -116,7 +117,7 @@ int main() {
           num_pairs = parse_read_delete(fd, keys, MAX_WRITE_SIZE, MAX_STRING_SIZE);
 
           if (num_pairs == 0) {
-            fprintf(stderr, "Invalid command. See HELP for usage\n");
+            fprintf(stderr, "Invalid command while deleting. See HELP for usage\n");
             continue;
           }
 
@@ -132,7 +133,7 @@ int main() {
 
         case CMD_WAIT:
           if (parse_wait(fd, &delay, NULL) == -1) {
-            fprintf(stderr, "Invalid command. See HELP for usage\n");
+            fprintf(stderr, "Invalid command while waiting. See HELP for usage\n");
             continue;
           }
 
