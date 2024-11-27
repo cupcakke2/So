@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <stdio.h>
 
 #include "constants.h"
 
@@ -13,17 +14,17 @@ static int read_string(int fd, char *buffer, size_t max) {
   size_t i = 0;
   int value = -1;
 
+
   while (i < max) {
     bytes_read = read(fd, &ch, 1);
 
-    if (bytes_read <= 0) {
-        return -1;
-    }
-
-    if (ch == ' ') {
+    if (bytes_read <=0){
       return -1;
     }
 
+    if (ch == ' '){
+      return -1;
+    }
     if (ch == ',') {
       value = 0;
       break;
@@ -169,6 +170,7 @@ enum Command get_next(int fd) {
 }
 
 int parse_pair(int fd, char *key, char *value) {
+  
   if (read_string(fd, key, MAX_STRING_SIZE) != 0) {
     cleanup(fd);
     return 0;
@@ -179,11 +181,14 @@ int parse_pair(int fd, char *key, char *value) {
     return 0;
   }
 
+
+
   return 1;
 }
 
 size_t parse_write(int fd, char keys[][MAX_STRING_SIZE], char values[][MAX_STRING_SIZE], size_t max_pairs, size_t max_string_size) {
   char ch;
+
 
   if (read(fd, &ch, 1) != 1 || ch != '[') {
     cleanup(fd);
@@ -199,16 +204,20 @@ size_t parse_write(int fd, char keys[][MAX_STRING_SIZE], char values[][MAX_STRIN
   char key[max_string_size];
   char value[max_string_size];
   while (num_pairs < max_pairs) {
+
     if(parse_pair(fd, key, value) == 0) {
       cleanup(fd);
+      printf("a");
       return 0;
     }
 
     strcpy(keys[num_pairs], key);
     strcpy(values[num_pairs++], value);
 
+
     if (read(fd, &ch, 1) != 1 || (ch != '(' && ch != ']')) {
       cleanup(fd);
+      printf("b");
       return 0;
     }
 
@@ -219,11 +228,13 @@ size_t parse_write(int fd, char keys[][MAX_STRING_SIZE], char values[][MAX_STRIN
 
   if (num_pairs == max_pairs) {
     cleanup(fd);
+    printf("c");
     return 0;
   }
 
   if (read(fd, &ch, 1) != 1 || (ch != '\n' && ch != '\0')) {
     cleanup(fd);
+    printf("d");
     return 0;
   }
 

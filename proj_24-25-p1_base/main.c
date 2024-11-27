@@ -80,104 +80,105 @@ int main() {
           return EXIT_FAILURE;
       }
 
-  
-      switch (get_next(fd)) {
-        case CMD_WRITE:
-          printf("writing\n");
-          num_pairs = parse_write(fd, keys, values, MAX_WRITE_SIZE, MAX_STRING_SIZE);
-          printf("num_pairs: %ld\n",num_pairs);
-          if (num_pairs == 0) {
-            fprintf(stderr, "Invalid command while writing. See HELP for usage\n");
-            continue;
-          }
+      for (;;){
+        switch (get_next(fd)) {
+          case CMD_WRITE:
+            printf("writing\n");
+            num_pairs = parse_write(fd, keys, values, MAX_WRITE_SIZE, MAX_STRING_SIZE);
+            printf("num_pairs: %ld\n",num_pairs);
+            if (num_pairs == 0) {
+              fprintf(stderr, "Invalid command while writing. See HELP for usage\n");
+              continue;
+            }
 
-          if (kvs_write(num_pairs, keys, values)) {
-            fprintf(stderr, "Failed to write pair\n");
-          }
+            if (kvs_write(num_pairs, keys, values)) {
+              fprintf(stderr, "Failed to write pair\n");
+            }
 
-          break;
+            break;
 
-        case CMD_READ:
-          printf("reading\n");
-          num_pairs = parse_read_delete(fd, keys, MAX_WRITE_SIZE, MAX_STRING_SIZE);
+          case CMD_READ:
+            printf("reading\n");
+            num_pairs = parse_read_delete(fd, keys, MAX_WRITE_SIZE, MAX_STRING_SIZE);
+            printf("num_pairs: %ld\n",num_pairs);
+            if (num_pairs == 0) {
+              fprintf(stderr, "Invalid command while reading. See HELP for usage\n");
+              continue;
+            }
 
-          if (num_pairs == 0) {
-            fprintf(stderr, "Invalid command while reading. See HELP for usage\n");
-            continue;
-          }
+            if (kvs_read(num_pairs, keys)) {
+              fprintf(stderr, "Failed to read pair\n");
+            }
+            break;
 
-          if (kvs_read(num_pairs, keys)) {
-            fprintf(stderr, "Failed to read pair\n");
-          }
-          break;
+          case CMD_DELETE:
+            num_pairs = parse_read_delete(fd, keys, MAX_WRITE_SIZE, MAX_STRING_SIZE);
 
-        case CMD_DELETE:
-          num_pairs = parse_read_delete(fd, keys, MAX_WRITE_SIZE, MAX_STRING_SIZE);
+            if (num_pairs == 0) {
+              fprintf(stderr, "Invalid command while deleting. See HELP for usage\n");
+              continue;
+            }
 
-          if (num_pairs == 0) {
-            fprintf(stderr, "Invalid command while deleting. See HELP for usage\n");
-            continue;
-          }
+            if (kvs_delete(num_pairs, keys)) {
+              fprintf(stderr, "Failed to delete pair\n");
+            }
+            break;
 
-          if (kvs_delete(num_pairs, keys)) {
-            fprintf(stderr, "Failed to delete pair\n");
-          }
-          break;
+          case CMD_SHOW:
 
-        case CMD_SHOW:
+            kvs_show();
+            break;
 
-          kvs_show();
-          break;
+          case CMD_WAIT:
+            if (parse_wait(fd, &delay, NULL) == -1) {
+              fprintf(stderr, "Invalid command while waiting. See HELP for usage\n");
+              continue;
+            }
 
-        case CMD_WAIT:
-          if (parse_wait(fd, &delay, NULL) == -1) {
-            fprintf(stderr, "Invalid command while waiting. See HELP for usage\n");
-            continue;
-          }
+            if (delay > 0) {
+              printf("Waiting...\n");
+              kvs_wait(delay);
+            }
+            break;
 
-          if (delay > 0) {
-            printf("Waiting...\n");
-            kvs_wait(delay);
-          }
-          break;
+          case CMD_BACKUP:
 
-        case CMD_BACKUP:
+            if (kvs_backup()) {
+              fprintf(stderr, "Failed to perform backup.\n");
+            }
+            break;
 
-          if (kvs_backup()) {
-            fprintf(stderr, "Failed to perform backup.\n");
-          }
-          break;
+          case CMD_INVALID:
+            fprintf(stderr, "Invalid command. See HELP for usage\n");
+            break;
 
-        case CMD_INVALID:
-          fprintf(stderr, "Invalid command. See HELP for usage\n");
-          break;
+          case CMD_HELP:
+            printf( 
+                "Available commands:\n"
+                "  WRITE [(key,value),(key2,value2),...]\n"
+                "  READ [key,key2,...]\n"
+                "  DELETE [key,key2,...]\n"
+                "  SHOW\n"
+                "  WAIT <delay_ms>\n"
+                "  BACKUP\n" // Not implemented
+                "  HELP\n"
+            );
 
-        case CMD_HELP:
-          printf( 
-              "Available commands:\n"
-              "  WRITE [(key,value),(key2,value2),...]\n"
-              "  READ [key,key2,...]\n"
-              "  DELETE [key,key2,...]\n"
-              "  SHOW\n"
-              "  WAIT <delay_ms>\n"
-              "  BACKUP\n" // Not implemented
-              "  HELP\n"
-          );
+            break;
+            
+          case CMD_EMPTY:
+            break;
 
-          break;
-          
-        case CMD_EMPTY:
-          break;
-
-        case EOC:
-          kvs_terminate();
-          return 0;
-      }
+          case EOC:
+            kvs_terminate();
+            return 0;
+        }
+    }
       
     
     
-      close(fd);
-      close(fd2);
+    close(fd);
+    close(fd2);
       
     }
   }
