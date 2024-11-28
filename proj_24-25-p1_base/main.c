@@ -80,6 +80,7 @@ int main() {
           return EXIT_FAILURE;
       }
 
+      int end = 0;
       for (;;){
         switch (get_next(fd)) {
           case CMD_WRITE:
@@ -97,7 +98,6 @@ int main() {
 
           case CMD_READ:
             num_pairs = parse_read_delete(fd, keys, MAX_WRITE_SIZE, MAX_STRING_SIZE);
-            printf("num_pairs: %ld\n",num_pairs);
             if (num_pairs == 0) {
               fprintf(stderr, "Invalid command while reading. See HELP for usage\n");
               continue;
@@ -167,9 +167,13 @@ int main() {
             break;
 
           case EOC:
+            end = 1;
             kvs_terminate();
             return 0;
 
+        }
+        if (end == 1){
+          break;
         }
       } 
     close(fd);
