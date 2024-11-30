@@ -48,6 +48,7 @@ int main() {
    
     for (;;){
       errno = 0;
+      char buffer[40];
       char file_name [MAX_JOB_FILE_NAME_SIZE] = "";
       char file_out [MAX_JOB_FILE_NAME_SIZE] = "";
 
@@ -82,8 +83,7 @@ int main() {
           return EXIT_FAILURE;
       }
 
-      int end = 0;
-      while(end == 0){
+      for(int i = 0; i<=2;i++){
         switch (get_next(fd)) {
           case CMD_WRITE:
             num_pairs = parse_write(fd, keys, values, MAX_WRITE_SIZE, MAX_STRING_SIZE);
@@ -169,9 +169,9 @@ int main() {
             break;
 
           case EOC:
-            end = 1;
+            printf("EOC\n");
             kvs_terminate();
-            return 0;
+            break;
         }
       }
     close(fd);
