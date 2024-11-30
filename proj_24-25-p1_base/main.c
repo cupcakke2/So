@@ -53,8 +53,10 @@ int main() {
 
 
       dp = readdir(dirp);
-      if (dp == NULL)
+
+      if (dp == NULL){
         break;
+      }
 
       if (strcmp(dp->d_name,".") == 0 || strcmp(dp->d_name,"..") == 0)
         continue;
@@ -81,7 +83,7 @@ int main() {
       }
 
       int end = 0;
-      for (;;){
+      while(end == 0){
         switch (get_next(fd)) {
           case CMD_WRITE:
             num_pairs = parse_write(fd, keys, values, MAX_WRITE_SIZE, MAX_STRING_SIZE);
@@ -170,14 +172,10 @@ int main() {
             end = 1;
             kvs_terminate();
             return 0;
-
         }
-        if (end == 1){
-          break;
-        }
-      } 
+      }
     close(fd);
     close(fd2);  
-    }
+    }  
   }
 }
