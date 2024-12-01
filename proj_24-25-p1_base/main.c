@@ -31,7 +31,6 @@ int main() {
     DIR* dirp;
     struct dirent *dp;
 
-    printf("> ");
     fflush(stdout);
 
     fgets(input,300,stdin);
@@ -48,7 +47,6 @@ int main() {
    
     for (;;){
       errno = 0;
-      char buffer[40];
       char file_name [MAX_JOB_FILE_NAME_SIZE] = "";
       char file_out [MAX_JOB_FILE_NAME_SIZE] = "";
 
@@ -56,6 +54,7 @@ int main() {
       dp = readdir(dirp);
 
       if (dp == NULL){
+        kvs_terminate();
         break;
       }
 
@@ -83,7 +82,7 @@ int main() {
           return EXIT_FAILURE;
       }
 
-      for(int i = 0; i<=2;i++){
+      for(;;){
         switch (get_next(fd)) {
           case CMD_WRITE:
             num_pairs = parse_write(fd, keys, values, MAX_WRITE_SIZE, MAX_STRING_SIZE);
@@ -169,11 +168,11 @@ int main() {
             break;
 
           case EOC:
-            printf("EOC\n");
-            kvs_terminate();
+            goto next_file;
             break;
         }
       }
+    next_file:
     close(fd);
     close(fd2);  
     }  
