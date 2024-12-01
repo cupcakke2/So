@@ -31,6 +31,7 @@ int main() {
     DIR* dirp;
     struct dirent *dp;
 
+    printf("> ");
     fflush(stdout);
 
     fgets(input,300,stdin);
