@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <unistd.h>
 
 #include "kvs.h"
 #include "constants.h"
@@ -51,27 +52,40 @@ int kvs_write(size_t num_pairs, char keys[][MAX_STRING_SIZE], char values[][MAX_
   return 0;
 }
 
-int kvs_read(size_t num_pairs, char keys[][MAX_STRING_SIZE]) {
+int kvs_read(int fd2, size_t num_pairs, char keys[][MAX_STRING_SIZE]) {
   if (kvs_table == NULL) {
     fprintf(stderr, "KVS state must be initialized\n");
     return 1;
   }
 
-  printf("[");
   for (size_t i = 0; i < num_pairs; i++) {
+    char buffer[MAX_OUT_BUFFER_SIZE] = ""; // Reinitialize buffer for each iteration
+    strcat(buffer, "[");
+
     char* result = read_pair(kvs_table, keys[i]);
     if (result == NULL) {
-      printf("(%s,KVSERROR)", keys[i]);
+        strcat(buffer, "(");
+        strcat(buffer, keys[i]);
+        strcat(buffer, ",KVSERROR)]");
     } else {
-      printf("(%s,%s)", keys[i], result);
+        strcat(buffer, "(");
+        strcat(buffer, keys[i]);
+        strcat(buffer, ",");
+        strcat(buffer, result);
+        strcat(buffer, ")]");
     }
+
+    strcat(buffer, "\n"); // Add newline for readability
+
+    // Write only the valid part of the buffer to the file
+    write(fd2, buffer, strlen(buffer));
     free(result);
   }
-  printf("]\n");
   return 0;
 }
 
-int kvs_delete(size_t num_pairs, char keys[][MAX_STRING_SIZE]) {
+int kvs_delete(int fd2, size_t num_pairs, char keys[][MAX_STRING_SIZE]) {
+  char buffer[MAX_OUT_BUFFER_SIZE] = ""; // Reinitialize buffer for each iteration
   if (kvs_table == NULL) {
     fprintf(stderr, "KVS state must be initialized\n");
     return 1;
@@ -81,27 +95,35 @@ int kvs_delete(size_t num_pairs, char keys[][MAX_STRING_SIZE]) {
   for (size_t i = 0; i < num_pairs; i++) {
     if (delete_pair(kvs_table, keys[i]) != 0) {
       if (!aux) {
-        printf("[");
+        strcat(buffer,"[");
         aux = 1;
       }
-      printf("(%s,KVSMISSING)", keys[i]);
+      strcat(buffer,"(");
+      strcat(buffer,keys[i]);
+      strcat(buffer,",KVSMISSING)");
     }
   }
   if (aux) {
-    printf("]\n");
+    strcat(buffer,"]\n");
   }
-
+  write(fd2, buffer, strlen(buffer));
   return 0;
 }
 
-void kvs_show() {
+void kvs_show(int fd2) {
+  char buffer[MAX_OUT_BUFFER_SIZE] = ""; // Reinitialize buffer for each iteration
   for (int i = 0; i < TABLE_SIZE; i++) {
     KeyNode *keyNode = kvs_table->table[i];
     while (keyNode != NULL) {
-      printf("(%s, %s)\n", keyNode->key, keyNode->value);
+      strcat(buffer,"(");
+      strcat(buffer,keyNode->key);
+      strcat(buffer,",");
+      strcat(buffer,keyNode->value);
+      strcat(buffer,")\n");
       keyNode = keyNode->next; // Move to the next node
     }
   }
+  write(fd2, buffer, strlen(buffer));
 }
 
 int kvs_backup() {

@@ -105,7 +105,7 @@ int main() {
               continue;
             }
 
-            if (kvs_read(num_pairs, keys)) {
+            if (kvs_read(fd2,num_pairs,keys)) {
               fprintf(stderr, "Failed to read pair\n");
             }
             break;
@@ -118,14 +118,14 @@ int main() {
               continue;
             }
 
-            if (kvs_delete(num_pairs, keys)) {
+            if (kvs_delete(fd2,num_pairs, keys)) {
               fprintf(stderr, "Failed to delete pair\n");
             }
             break;
 
           case CMD_SHOW:
 
-            kvs_show();
+            kvs_show(fd2);
             break;
 
           case CMD_WAIT:
