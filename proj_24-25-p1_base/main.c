@@ -41,7 +41,7 @@ int main() {
 
     
     if (dirp == NULL){
-      perror("Failure at opening directory"); //ALTERAR
+      perror("Failure at opening directory"); 
       return EXIT_FAILURE;
     }
     
