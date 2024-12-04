@@ -27,22 +27,20 @@ int main(int argc, char* argv[]) {
 
   char keys[MAX_WRITE_SIZE][MAX_STRING_SIZE] = {0};
   char values[MAX_WRITE_SIZE][MAX_STRING_SIZE] = {0};
-  //char dirpath [MAX_JOB_FILE_NAME_SIZE]=""; //Duvido
-  //int MAX_BACKUPS;
-  //char input[300]; //Alterar depois
+  int MAX_BACKUPS;
   unsigned int delay;
   size_t num_pairs;
   DIR* dirp;
   struct dirent *dp;
-
-  //printf("> ");
   fflush(stdout);
 
-  //fgets(input,300,stdin);
-  //sscanf(input, "%s%d",dirpath,&MAX_BACKUPS);
-
-
   dirp = opendir(argv[1]);
+  MAX_BACKUPS = atoi(argv[2]);
+
+  if (MAX_BACKUPS < 0){
+    fprintf(stderr, "MAX_BACKUPS must be equal or superior to 0.\n");
+    return 1;
+  }
 
   
   if (dirp == NULL){
