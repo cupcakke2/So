@@ -1,4 +1,4 @@
-WRITE [(a,1)(b,2)]
-READ [chave2]
+WRITE [(c3,v3)]
+READ
 BACKUP
-SHOW
+BACKUP

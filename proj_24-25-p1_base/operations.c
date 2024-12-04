@@ -126,7 +126,8 @@ void kvs_show(int fd2) {
   write(fd2, buffer, strlen(buffer));
 }
 
-int kvs_backup() {
+int kvs_backup(int fd3) {
+  kvs_show(fd3);
   return 0;
 }
 

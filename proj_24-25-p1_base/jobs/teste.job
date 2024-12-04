@@ -1,4 +1,6 @@
 WRITE [(c1,v1)(c2,valor-exemplo)]
+BACKUP
 READ [chave2]
 BACKUP
+WRITE [(c3,v3)]
 SHOW

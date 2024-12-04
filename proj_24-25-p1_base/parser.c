@@ -89,6 +89,8 @@ enum Command get_next(int fd) {
     return EOC;
   }
 
+  printf("%s\n",buf);
+
   switch (buf[0]) {
     case 'W':
       if (read(fd, buf + 1, 4) != 4 || strncmp(buf, "WAIT ", 5) != 0) {
@@ -165,6 +167,7 @@ enum Command get_next(int fd) {
 
     default:
       cleanup(fd);
+      printf("%s\n",buf);
       return CMD_INVALID;
   }
 }

@@ -39,8 +39,9 @@ void kvs_show(int fd2);
 
 /// Creates a backup of the KVS state and stores it in the correspondent
 /// backup file
+/// @param fd3 File descriptor to write the output.
 /// @return 0 if the backup was successful, 1 otherwise.
-int kvs_backup();
+int kvs_backup(int fd3);
 
 /// Waits for the last backup to be called.
 void kvs_wait_backup();
