@@ -1,3 +1,4 @@
 WRITE [(a,1)(b,2)]
 READ [chave2]
+BACKUP
 SHOW

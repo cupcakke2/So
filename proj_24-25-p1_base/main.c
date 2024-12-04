@@ -76,7 +76,6 @@ int main(int argc, char* argv[]) {
 
     if (strcmp(dot+1,"job")==0){
       fd = open(file_name, O_RDONLY); 
-      printf("%s\n",file_name);
     }
     
     if (fd < 0) {
