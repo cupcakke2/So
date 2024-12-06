@@ -39,8 +39,11 @@ void kvs_show(int fd2);
 
 /// Creates a backup of the KVS state and stores it in the correspondent
 /// backup file
+/// @param fd3 file descriptor to be written in
+/// @param pid_counts number of current child processes made
+/// @param MAX_BACKUPS maximum number of back_ups
 /// @return 0 if the backup was successful, 1 otherwise.
-int kvs_backup();
+int kvs_backup(int fd3, int pid_counts, int MAX_BACKUPS);
 
 /// Waits for the last backup to be called.
 void kvs_wait_backup();

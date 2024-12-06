@@ -129,7 +129,23 @@ void kvs_show(int fd2) {
   write(fd2, buffer, strlen(buffer));
 }
 
-int kvs_backup() {
+int kvs_backup(int fd3, int pid_counts, int MAX_BACKUPS) {
+
+  pid_t pid;
+  pid = fork ();
+  if (pid == -1){
+    fprintf(stderr, "Failed to fork.\n");
+    return 1;
+  }
+  if (pid == 0) {
+
+    kvs_show(fd3);  
+    exit(0);
+  } else {
+  if(pid_counts >= MAX_BACKUPS)
+    wait(NULL);
+  }
+
   return 0;
 }
 

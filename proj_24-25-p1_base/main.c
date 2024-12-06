@@ -27,22 +27,17 @@ int main(int argc, char* argv[]) {
 
   char keys[MAX_WRITE_SIZE][MAX_STRING_SIZE] = {0};
   char values[MAX_WRITE_SIZE][MAX_STRING_SIZE] = {0};
-  //char dirpath [MAX_JOB_FILE_NAME_SIZE]=""; //Duvido
-  //int MAX_BACKUPS;
-  //char input[300]; //Alterar depois
+  int MAX_BACKUPS;
   unsigned int delay;
+  int pid_counts = 0;
   size_t num_pairs;
   DIR* dirp;
   struct dirent *dp;
 
-  //printf("> ");
   fflush(stdout);
 
-  //fgets(input,300,stdin);
-  //sscanf(input, "%s%d",dirpath,&MAX_BACKUPS);
-
-
   dirp = opendir(argv[1]);
+  MAX_BACKUPS = atoi(argv[2]);
 
   
   if (dirp == NULL){
@@ -55,6 +50,8 @@ int main(int argc, char* argv[]) {
     char file_name [MAX_JOB_FILE_NAME_SIZE] = "";
     char file_out [MAX_JOB_FILE_NAME_SIZE] = "";
     int fd;
+    int num_backups = 0;
+    char bck_number [4] = "";
 
 
     dp = readdir(dirp);
@@ -152,9 +149,32 @@ int main(int argc, char* argv[]) {
 
         case CMD_BACKUP:
 
-          if (kvs_backup()) {
+          char file_bck [MAX_JOB_FILE_NAME_SIZE] = "";
+          pid_counts++;
+          num_backups++;
+          strncpy(file_bck,file_out,strlen(file_name)-4);
+          strcat(file_bck,"-");
+          sprintf(bck_number, "%d", num_backups); 
+          strcat(file_bck,bck_number);
+          strcat(file_bck, ".bck");
+
+
+          int fd3 = open(file_bck, O_CREAT | O_TRUNC | O_WRONLY, S_IRUSR | S_IWUSR);
+
+          
+
+          if (fd3 < 0) {
+              perror("Opening error in .out file.");
+              return EXIT_FAILURE;
+          }
+
+
+          if (kvs_backup(fd3,pid_counts,MAX_BACKUPS)) {
             fprintf(stderr, "Failed to perform backup.\n");
           }
+
+          strcpy(file_bck,"");
+          strcpy(bck_number,"");
           break;
 
         case CMD_INVALID:
@@ -186,6 +206,7 @@ int main(int argc, char* argv[]) {
   next_file:
   close(fd);
   close(fd2);  
+  num_backups=0;
   }  
   closedir(dirp);
 }

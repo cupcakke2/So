@@ -89,7 +89,6 @@ enum Command get_next(int fd) {
     return EOC;
   }
 
-  printf("buffer: %c\n",buf[0]);
 
   switch (buf[0]) {
     case 'W':
