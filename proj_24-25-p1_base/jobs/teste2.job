@@ -1,4 +1,2 @@
-WRITE [(c3,v3)]
-READ
-BACKUP
-BACKUP
+WRITE [(c4,v4)]
+SHOW

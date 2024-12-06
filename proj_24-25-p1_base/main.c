@@ -11,7 +11,6 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-#include <sys/wait.h>
 
 
 int main(int argc, char* argv[]) {
@@ -28,22 +27,22 @@ int main(int argc, char* argv[]) {
 
   char keys[MAX_WRITE_SIZE][MAX_STRING_SIZE] = {0};
   char values[MAX_WRITE_SIZE][MAX_STRING_SIZE] = {0};
-  int MAX_BACKUPS;
-  int pid_counts = 0;
-  int num_backups = 0;
+  //char dirpath [MAX_JOB_FILE_NAME_SIZE]=""; //Duvido
+  //int MAX_BACKUPS;
+  //char input[300]; //Alterar depois
   unsigned int delay;
   size_t num_pairs;
   DIR* dirp;
   struct dirent *dp;
+
+  //printf("> ");
   fflush(stdout);
 
-  dirp = opendir(argv[1]);
-  MAX_BACKUPS = atoi(argv[2]);
+  //fgets(input,300,stdin);
+  //sscanf(input, "%s%d",dirpath,&MAX_BACKUPS);
 
-  if (MAX_BACKUPS < 0){
-    fprintf(stderr, "MAX_BACKUPS must be equal or superior to 0.\n");
-    return 1;
-  }
+
+  dirp = opendir(argv[1]);
 
   
   if (dirp == NULL){
@@ -55,8 +54,6 @@ int main(int argc, char* argv[]) {
   for (;;){
     char file_name [MAX_JOB_FILE_NAME_SIZE] = "";
     char file_out [MAX_JOB_FILE_NAME_SIZE] = "";
-    char file_bck [MAX_JOB_FILE_NAME_SIZE] = "";
-    char bck_number [4] = ""; //Mudar para estar relacionado com o MAX_BACKUPS
     int fd;
 
 
@@ -155,40 +152,13 @@ int main(int argc, char* argv[]) {
 
         case CMD_BACKUP:
 
-          pid_t pid;
-          pid = fork ();
-          pid_counts ++; 
-          num_backups ++;
-          if (pid == -1){
-            fprintf(stderr, "Failed to fork.\n");
-            return 1;
-          }
-          if (pid == 0) {
-            strncpy(file_bck,file_out,strlen(file_name)-4);
-            strcat(file_bck,"-");
-            sprintf(bck_number, "%d", num_backups); //Justificar que usa stdio.h, mas não usamos para ler ficheiro 
-            strcat(file_bck,bck_number);
-            strcat(file_bck, ".bck");
-
-            int fd3 = open(file_bck, O_CREAT | O_TRUNC | O_WRONLY, S_IRUSR | S_IWUSR);
-            strcpy(file_bck, "");
-
-            if (fd3 < 0) {
-                perror("Opening error in .out file.");
-                return EXIT_FAILURE;
-            }
-            kvs_backup(fd3);  
-            exit(0);
-          } else {
-            if(pid_counts >= MAX_BACKUPS){
-              wait(NULL);
-            }
-            continue;
+          if (kvs_backup()) {
+            fprintf(stderr, "Failed to perform backup.\n");
           }
           break;
 
         case CMD_INVALID:
-          fprintf(stderr, "Invalid command in CMD_INVALID. See HELP for usage\n");
+          fprintf(stderr, "Invalid command. See HELP for usage\n");
           break;
 
         case CMD_HELP:
@@ -215,8 +185,7 @@ int main(int argc, char* argv[]) {
     }
   next_file:
   close(fd);
-  close(fd2);
-  num_backups = 0; 
+  close(fd2);  
   }  
   closedir(dirp);
 }

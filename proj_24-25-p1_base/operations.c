@@ -3,6 +3,9 @@
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
+#include <pthread.h>
+#include <sys/time.h>
+#include <sys/wait.h>
 
 #include "kvs.h"
 #include "constants.h"
@@ -126,8 +129,7 @@ void kvs_show(int fd2) {
   write(fd2, buffer, strlen(buffer));
 }
 
-int kvs_backup(int fd3) {
-  kvs_show(fd3);
+int kvs_backup() {
   return 0;
 }
 
