@@ -2,6 +2,7 @@
 #define KVS_OPERATIONS_H
 
 #include <stddef.h>
+#include "structs.h"
 
 /// Initializes the KVS state.
 /// @return 0 if the KVS state was initialized successfully, 1 otherwise.
@@ -15,8 +16,9 @@ int kvs_terminate();
 /// @param num_pairs Number of pairs being written.
 /// @param keys Array of keys' strings.
 /// @param values Array of values' strings.
+/// @param file struct that has a file descriptor and a rwlock
 /// @return 0 if the pairs were written successfully, 1 otherwise.
-int kvs_write(size_t num_pairs, char keys[][MAX_STRING_SIZE], char values[][MAX_STRING_SIZE]);
+int kvs_write(size_t num_pairs, char keys[][MAX_STRING_SIZE], char values[][MAX_STRING_SIZE],fd_with_mutex file);
 
 /// Reads values from the KVS.
 /// @param fd2 File descriptor to be written in

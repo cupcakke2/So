@@ -13,21 +13,14 @@
 #include <fcntl.h>
 #include <pthread.h>
 #include <stdint.h>
+#include "structs.h"
 
-typedef struct {
-    int fd;               
-    pthread_rwlock_t rwlock;
-} fd_with_mutex;
 
-typedef struct {
-    size_t num_pairs;
-    char keys [256][MAX_STRING_SIZE];
-    char values [256][MAX_STRING_SIZE];
-} write_args_t;
+
 
 void *kvs_write_wrapper(void *args) {
     write_args_t *write_args = (write_args_t *)args;
-    int result = kvs_write(write_args->num_pairs, write_args->keys, write_args->values);
+    int result = kvs_write(write_args->num_pairs, write_args->keys, write_args->values, write_args->file);
     return (void *)(intptr_t)result; // Cast result to void * for return
 }
 
@@ -62,6 +55,8 @@ int main(int argc, char* argv[]) {
   MAX_THREADS = atoi(argv[3]);
 
   pthread_t tid[MAX_THREADS];
+  
+
 
   
   if (dirp == NULL){
@@ -134,13 +129,16 @@ int main(int argc, char* argv[]) {
 
             memcpy(write_args.keys, keys, sizeof(keys));
             memcpy(write_args.values, values, sizeof(values));
+            write_args.file = file;
+            write_args.file.fd = file.fd;
+            write_args.file.rwlock = file.rwlock;
             
             if (pthread_create(&tid[thread_counts],0,kvs_write_wrapper,(void *)&write_args) != 0) {
               fprintf(stderr, "failed to create thread: %s\n", strerror(errno));
               exit(EXIT_FAILURE);
             }
           } else {
-            if(kvs_write(num_pairs, keys, values)!=0){
+            if(kvs_write(num_pairs, keys, values,file)!=0){
               fprintf(stderr, "Failed to write pair\n");
             }
           }
@@ -252,5 +250,8 @@ int main(int argc, char* argv[]) {
   num_backups=0;
   thread_counts ++;
   }  
+  for (int i = 0; i < thread_counts; ++i) {
+    pthread_join(tid[i], NULL);
+  }
   closedir(dirp);
 }
