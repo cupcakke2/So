@@ -11,12 +11,31 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <pthread.h>
+#include <stdint.h>
+
+typedef struct {
+    int fd;               
+    pthread_rwlock_t rwlock;
+} fd_with_mutex;
+
+typedef struct {
+    size_t num_pairs;
+    char keys [256][MAX_STRING_SIZE];
+    char values [256][MAX_STRING_SIZE];
+} write_args_t;
+
+void *kvs_write_wrapper(void *args) {
+    write_args_t *write_args = (write_args_t *)args;
+    int result = kvs_write(write_args->num_pairs, write_args->keys, write_args->values);
+    return (void *)(intptr_t)result; // Cast result to void * for return
+}
 
 
 int main(int argc, char* argv[]) {
 
-  if(argc != 3){
-    fprintf(stderr, "Propper usage is: ./kvs dirpath MAX_BACKUPS\n");
+  if(argc != 4){
+    fprintf(stderr, "Propper usage is: ./kvs dirpath MAX_BACKUPS MAX_THREADS\n");
     return 1;
   }
 
@@ -28,8 +47,10 @@ int main(int argc, char* argv[]) {
   char keys[MAX_WRITE_SIZE][MAX_STRING_SIZE] = {0};
   char values[MAX_WRITE_SIZE][MAX_STRING_SIZE] = {0};
   int MAX_BACKUPS;
+  int MAX_THREADS;
   unsigned int delay;
   int pid_counts = 0;
+  int thread_counts = 0;
   size_t num_pairs;
   DIR* dirp;
   struct dirent *dp;
@@ -38,6 +59,9 @@ int main(int argc, char* argv[]) {
 
   dirp = opendir(argv[1]);
   MAX_BACKUPS = atoi(argv[2]);
+  MAX_THREADS = atoi(argv[3]);
+
+  pthread_t tid[MAX_THREADS];
 
   
   if (dirp == NULL){
@@ -49,9 +73,9 @@ int main(int argc, char* argv[]) {
   for (;;){
     char file_name [MAX_JOB_FILE_NAME_SIZE] = "";
     char file_out [MAX_JOB_FILE_NAME_SIZE] = "";
-    int fd;
     int num_backups = 0;
     char bck_number [4] = "";
+    errno = 0;
 
 
     dp = readdir(dirp);
@@ -72,12 +96,14 @@ int main(int argc, char* argv[]) {
 
     const char *dot = strrchr(file_name,'.');
 
+    fd_with_mutex file;
 
     if (strcmp(dot+1,"job")==0){
-      fd = open(file_name, O_RDONLY); 
+      file.fd = open(file_name, O_RDONLY); 
     }
+
     
-    if (fd < 0) {
+    if (file.fd < 0) {
         perror("Opening error in .job files.");
         return EXIT_FAILURE;
     }
@@ -91,22 +117,38 @@ int main(int argc, char* argv[]) {
     }
 
     for(;;){
-      switch (get_next(fd)) {
+      pthread_rwlock_init(&file.rwlock, NULL);
+      switch (get_next(file.fd)) {
         case CMD_WRITE:
-          num_pairs = parse_write(fd, keys, values, MAX_WRITE_SIZE, MAX_STRING_SIZE);
+      
+          num_pairs = parse_write(file.fd, keys, values, MAX_WRITE_SIZE, MAX_STRING_SIZE);
           if (num_pairs == 0) {
             fprintf(stderr, "Invalid command while writing. See HELP for usage\n");
             continue;
           }
 
-          if (kvs_write(num_pairs, keys, values)) {
-            fprintf(stderr, "Failed to write pair\n");
+          
+          if(thread_counts < MAX_THREADS){
+            write_args_t write_args = {.num_pairs=num_pairs};
+    
+
+            memcpy(write_args.keys, keys, sizeof(keys));
+            memcpy(write_args.values, values, sizeof(values));
+            
+            if (pthread_create(&tid[thread_counts],0,kvs_write_wrapper,(void *)&write_args) != 0) {
+              fprintf(stderr, "failed to create thread: %s\n", strerror(errno));
+              exit(EXIT_FAILURE);
+            }
+          } else {
+            if(kvs_write(num_pairs, keys, values)!=0){
+              fprintf(stderr, "Failed to write pair\n");
+            }
           }
 
           break;
 
         case CMD_READ:
-          num_pairs = parse_read_delete(fd, keys, MAX_WRITE_SIZE, MAX_STRING_SIZE);
+          num_pairs = parse_read_delete(file.fd, keys, MAX_WRITE_SIZE, MAX_STRING_SIZE);
           if (num_pairs == 0) {
             fprintf(stderr, "Invalid command while reading. See HELP for usage\n");
             continue;
@@ -118,7 +160,7 @@ int main(int argc, char* argv[]) {
           break;
 
         case CMD_DELETE:
-          num_pairs = parse_read_delete(fd, keys, MAX_WRITE_SIZE, MAX_STRING_SIZE);
+          num_pairs = parse_read_delete(file.fd, keys, MAX_WRITE_SIZE, MAX_STRING_SIZE);
 
           if (num_pairs == 0) {
             fprintf(stderr, "Invalid command while deleting. See HELP for usage\n");
@@ -136,7 +178,7 @@ int main(int argc, char* argv[]) {
           break;
 
         case CMD_WAIT:
-          if (parse_wait(fd, &delay, NULL) == -1) {
+          if (parse_wait(file.fd, &delay, NULL) == -1) {
             fprintf(stderr, "Invalid command while waiting. See HELP for usage\n");
             continue;
           }
@@ -204,9 +246,11 @@ int main(int argc, char* argv[]) {
       }
     }
   next_file:
-  close(fd);
+  close(file.fd);
+  pthread_rwlock_destroy(&file.rwlock);
   close(fd2);  
   num_backups=0;
+  thread_counts ++;
   }  
   closedir(dirp);
 }
