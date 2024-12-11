@@ -1,4 +1,0 @@
-WRITE [(c1,v1)(c2,valor-exemplo)]
-READ [chave2]
-WRITE [(c3,v3)]
-SHOW

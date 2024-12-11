@@ -145,7 +145,7 @@ next_file:
 void* job_thread_handler(void* arg) {
     ThreadArgs* args = (ThreadArgs*)arg;
     job_handler(args->fd, args->fd2, args->file_name, args->MAX_BACKUPS);
-  // Free strdup'ed file_name.
+    free((void*)args->file_name);
     return NULL;
 }
 
@@ -237,11 +237,13 @@ int main(int argc, char* argv[]) {
         pthread_create(&threads[thread_count % MAX_THREADS], NULL, job_thread_handler, (void*)args);
         thread_count++;
     }
+
   }  
 
   for (int i = 0; i < thread_count; i++) {
     pthread_join(threads[i], NULL);
   }
+  
   kvs_terminate();
   closedir(dirp);
 }
