@@ -13,9 +13,10 @@
 #include <fcntl.h>
 #include <pthread.h>
 
-int pid_counts = 0;
-int thread_count = 0;
+int pid_counts = 0; //Counter for the number of child processes created
+int thread_count = 0; //Counter for the number of threads created
 
+//Struct that caries the arguments for the function job_thread_handler
 typedef struct {
   int fd;
   int fd2;
@@ -23,7 +24,7 @@ typedef struct {
   int MAX_BACKUPS;
 } ThreadArgs;
 
-
+//Function that processes a .job file (fd) and writes its output in a corresponding .out file (fd2)
 void job_handler(int fd, int fd2, const char* file_name, int MAX_BACKUPS) {
     char keys[MAX_WRITE_SIZE][MAX_STRING_SIZE] = {0};
     char values[MAX_WRITE_SIZE][MAX_STRING_SIZE] = {0};
@@ -138,10 +139,11 @@ void job_handler(int fd, int fd2, const char* file_name, int MAX_BACKUPS) {
         }
     }
 next_file:
-    close(fd);
+    close(fd); 
     close(fd2);
 }
 
+//Function that unfolds the (void*)args passed to the thread into the arguments for the job_handler function
 void* job_thread_handler(void* arg) {
     ThreadArgs* args = (ThreadArgs*)arg;
     job_handler(args->fd, args->fd2, args->file_name, args->MAX_BACKUPS);
@@ -151,6 +153,7 @@ void* job_thread_handler(void* arg) {
 
 int main(int argc, char* argv[]) {
 
+  //Handling of inproper inputs by the user
   if(argc != 4){
     fprintf(stderr, "Propper usage is: ./kvs dirpath MAX_BACKUPS MAX_THREADS\n");
     return 1;
@@ -174,7 +177,7 @@ int main(int argc, char* argv[]) {
   pthread_t threads[MAX_THREADS];
   ThreadArgs thread_args[MAX_THREADS];
 
-  
+
   if (dirp == NULL){
     perror("Failure at opening directory"); 
     return EXIT_FAILURE;
@@ -193,6 +196,7 @@ int main(int argc, char* argv[]) {
       break;
     }
 
+    //Skip . and .. files in the opened directory
     if (strcmp(dp->d_name,".") == 0 || strcmp(dp->d_name,"..") == 0)
       continue;
 
@@ -204,7 +208,7 @@ int main(int argc, char* argv[]) {
 
     const char *dot = strrchr(file_name,'.');
 
-
+    //Verification that the current file is a .job and if so, open in it read mode
     if (strcmp(dot+1,"job")==0){
       fd = open(file_name, O_RDONLY); 
     }
@@ -214,6 +218,7 @@ int main(int argc, char* argv[]) {
         return EXIT_FAILURE;
     }
 
+    //Open the .out file on which the output for the corresponding .job file will be written
     int fd2 = open(file_out, O_CREAT | O_TRUNC | O_WRONLY, S_IRUSR | S_IWUSR);
 
     
@@ -229,10 +234,12 @@ int main(int argc, char* argv[]) {
     args->file_name[MAX_JOB_FILE_NAME_SIZE - 1] = '\0';
     args->MAX_BACKUPS = MAX_BACKUPS;
 
+    //Creation of threads until the MAX_THREADS limit is reached
     if (thread_count < MAX_THREADS) {
         pthread_create(&threads[thread_count], NULL, job_thread_handler, (void*)args);
         thread_count++;
     } else {
+        //Await for a thread to be finished before creating a new one, to ensure only MAX_THREADS run at the same time
         pthread_join(threads[thread_count % MAX_THREADS], NULL);
         pthread_create(&threads[thread_count % MAX_THREADS], NULL, job_thread_handler, (void*)args);
         thread_count++;
@@ -240,6 +247,7 @@ int main(int argc, char* argv[]) {
 
   }  
 
+  //Join all created threads
   for (int i = 0; i < (thread_count < MAX_THREADS ? thread_count : MAX_THREADS); i++) {
     pthread_join(threads[i], NULL);
   }

@@ -6,7 +6,6 @@
 #include <pthread.h>
 #include <sys/time.h>
 #include <sys/wait.h>
-
 #include "kvs.h"
 #include "constants.h"
 
@@ -20,6 +19,7 @@ static struct timespec delay_to_timespec(unsigned int delay_ms) {
   return (struct timespec){delay_ms / 1000, (delay_ms % 1000) * 1000000};
 }
 
+//Comparing fuction used in qsort to order the output of kvs_read
 int compare(const void *a, const void *b) {
     const char *strA = *(const char **)a;
     const char *strB = *(const char **)b;
@@ -27,16 +27,14 @@ int compare(const void *a, const void *b) {
 }
 
 char *sort_parentheses(const char *input_str) {
-    static char result[1024]; // Buffer for the result
-    char *pairs[100];         // Array to store pointers to pairs
-    char temp[1024];          // Temporary buffer for manipulation
+    static char result[MAX_OUT_BUFFER_SIZE]; 
+    char *pairs[MAX_OUT_BUFFER_SIZE];         
+    char temp[MAX_OUT_BUFFER_SIZE];          
     size_t count = 0;
 
-    // Copy the input string to a modifiable buffer
-    strncpy(temp, input_str + 1, strlen(input_str) - 2); // Skip '[' and ']'
+    strncpy(temp, input_str + 1, strlen(input_str) - 2); 
     temp[strlen(input_str) - 2] = '\0';
 
-    // Split the string into individual pairs
     char *token = strtok(temp, "(");
     while (token != NULL) {
         pairs[count] = token;
@@ -46,7 +44,7 @@ char *sort_parentheses(const char *input_str) {
         token = strtok(NULL, "(");
     }
 
-    // Sort the pairs using qsort
+    // Sort the pairs using qsort function defined above
     qsort(pairs, count, sizeof(char *), compare);
 
     char *res_ptr = result;
@@ -129,7 +127,6 @@ int kvs_read(int fd2, size_t num_pairs, char keys[][MAX_STRING_SIZE]) {
     
 
     char* result = read_pair(kvs_table, keys[i]);
-    printf("%s\n",keys[i]);
     if (result == NULL) {
         strcat(buffer, "(");
         strcat(buffer, keys[i]);

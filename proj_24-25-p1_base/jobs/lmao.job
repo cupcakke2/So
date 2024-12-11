@@ -1,0 +1,7 @@
+WRITE [(bifana,seller)]
+BACKUP
+SHOW
+READ [bifana]
+WRITE [(Cristina,Ferreira)]
+BACKUP
+SHOW
