@@ -11,10 +11,20 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <pthread.h>
+
+typedef struct {
+  int fd;
+  int fd2;
+  const char* file_name;
+  int MAX_BACKUPS;
+  pthread_rwlock_t* rwlock;
+} ThreadArgs;
+
 
 int pid_counts = 0;
 
-void job_handler(int fd, int fd2, const char* file_name, int MAX_BACKUPS) {
+void job_handler(int fd, int fd2, const char* file_name, int MAX_BACKUPS,pthread_rwlock_t* rwlock) {
     char keys[MAX_WRITE_SIZE][MAX_STRING_SIZE] = {0};
     char values[MAX_WRITE_SIZE][MAX_STRING_SIZE] = {0};
     size_t num_pairs;
@@ -31,7 +41,7 @@ void job_handler(int fd, int fd2, const char* file_name, int MAX_BACKUPS) {
                     continue;
                 }
 
-                if (kvs_write(num_pairs, keys, values)) {
+                if (kvs_write(num_pairs, keys, values,rwlock)) {
                     fprintf(stderr, "Failed to write pair\n");
                 }
                 break;
@@ -43,7 +53,7 @@ void job_handler(int fd, int fd2, const char* file_name, int MAX_BACKUPS) {
                     continue;
                 }
 
-                if (kvs_read(fd2, num_pairs, keys)) {
+                if (kvs_read(fd2, num_pairs, keys,rwlock)) {
                     fprintf(stderr, "Failed to read pair\n");
                 }
                 break;
@@ -56,7 +66,7 @@ void job_handler(int fd, int fd2, const char* file_name, int MAX_BACKUPS) {
                     continue;
                 }
 
-                if (kvs_delete(fd2, num_pairs, keys)) {
+                if (kvs_delete(fd2, num_pairs, keys,rwlock)) {
                     fprintf(stderr, "Failed to delete pair\n");
                 }
                 break;
@@ -132,11 +142,26 @@ next_file:
     close(fd2);
 }
 
+void* job_thread_handler(void* arg) {
+    ThreadArgs* args = (ThreadArgs*)arg;
+    int fd = args->fd;
+    int fd2 = args->fd2;
+    const char* file_name = args->file_name;
+    int MAX_BACKUPS = args->MAX_BACKUPS;
+    pthread_rwlock_t* rwlock = args->rwlock;
+
+    job_handler(fd, fd2, file_name, MAX_BACKUPS,rwlock);
+    free(args);  // Free the allocated memory for the arguments
+
+    return NULL;
+}
+
+
 
 int main(int argc, char* argv[]) {
 
-  if(argc != 3){
-    fprintf(stderr, "Propper usage is: ./kvs dirpath MAX_BACKUPS\n");
+  if(argc != 4){
+    fprintf(stderr, "Propper usage is: ./kvs dirpath MAX_BACKUPS MAX_THREADS\n");
     return 1;
   }
 
@@ -146,6 +171,8 @@ int main(int argc, char* argv[]) {
   }
 
   int MAX_BACKUPS;
+  int MAX_THREADS;
+  int thread_count = 0;
   DIR* dirp;
   struct dirent *dp;
 
@@ -153,6 +180,12 @@ int main(int argc, char* argv[]) {
 
   dirp = opendir(argv[1]);
   MAX_BACKUPS = atoi(argv[2]);
+  MAX_THREADS = atoi(argv[3]);
+
+  pthread_t threads[MAX_THREADS];
+
+  pthread_rwlock_t rwlock;
+  pthread_rwlock_init(&rwlock, NULL);
 
   
   if (dirp == NULL){
@@ -203,7 +236,31 @@ int main(int argc, char* argv[]) {
         return EXIT_FAILURE;
     }
 
-    job_handler(fd, fd2, file_name, MAX_BACKUPS);
+   ThreadArgs* args = malloc(sizeof(ThreadArgs));
+    args->fd = fd;
+    args->fd2 = fd2;
+    args->file_name = file_name;  
+    args->MAX_BACKUPS = MAX_BACKUPS;
+    args->rwlock = &rwlock;
+
+    // Create a new thread to handle the job
+    if (thread_count < MAX_THREADS) {
+      pthread_create(&threads[thread_count], NULL, job_thread_handler, (void*)args);
+      thread_count++;
+    } else {
+      // Wait for a thread to finish before creating a new one
+      pthread_join(threads[thread_count - 1], NULL);
+      pthread_create(&threads[thread_count], NULL, job_thread_handler, (void*)args);
+      thread_count++;
+    }
+
   }  
+
+  for (int i = 0; i < thread_count; i++) {
+    pthread_join(threads[i], NULL);
+  }
+
+  pthread_rwlock_destroy(&rwlock);
   closedir(dirp);
+  return 0;
 }

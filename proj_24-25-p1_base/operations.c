@@ -6,6 +6,7 @@
 #include <pthread.h>
 #include <sys/time.h>
 #include <sys/wait.h>
+#include <pthread.h>
 
 #include "kvs.h"
 #include "constants.h"
@@ -40,27 +41,29 @@ int kvs_terminate() {
   return 0;
 }
 
-int kvs_write(size_t num_pairs, char keys[][MAX_STRING_SIZE], char values[][MAX_STRING_SIZE]) {
+int kvs_write(size_t num_pairs, char keys[][MAX_STRING_SIZE], char values[][MAX_STRING_SIZE],pthread_rwlock_t* rwlock) {
   if (kvs_table == NULL) {
     fprintf(stderr, "KVS state must be initialized\n");
     return 1;
   }
 
+  pthread_rwlock_wrlock(rwlock);
   for (size_t i = 0; i < num_pairs; i++) {
     if (write_pair(kvs_table, keys[i], values[i]) != 0) {
       fprintf(stderr, "Failed to write keypair (%s,%s)\n", keys[i], values[i]);
     }
   }
-
+  pthread_rwlock_unlock(rwlock);
   return 0;
 }
 
-int kvs_read(int fd2, size_t num_pairs, char keys[][MAX_STRING_SIZE]) {
+int kvs_read(int fd2, size_t num_pairs, char keys[][MAX_STRING_SIZE],pthread_rwlock_t* rwlock) {
   if (kvs_table == NULL) {
     fprintf(stderr, "KVS state must be initialized\n");
     return 1;
   }
 
+  pthread_rwlock_rdlock(rwlock);
   for (size_t i = 0; i < num_pairs; i++) {
     char buffer[MAX_OUT_BUFFER_SIZE] = ""; // Reinitialize buffer for each iteration
     strcat(buffer, "[");
@@ -84,10 +87,11 @@ int kvs_read(int fd2, size_t num_pairs, char keys[][MAX_STRING_SIZE]) {
     write(fd2, buffer, strlen(buffer));
     free(result);
   }
+  pthread_rwlock_unlock(rwlock);
   return 0;
 }
 
-int kvs_delete(int fd2, size_t num_pairs, char keys[][MAX_STRING_SIZE]) {
+int kvs_delete(int fd2, size_t num_pairs, char keys[][MAX_STRING_SIZE],pthread_rwlock_t* rwlock) {
   char buffer[MAX_OUT_BUFFER_SIZE] = ""; // Reinitialize buffer for each iteration
   if (kvs_table == NULL) {
     fprintf(stderr, "KVS state must be initialized\n");
@@ -95,6 +99,7 @@ int kvs_delete(int fd2, size_t num_pairs, char keys[][MAX_STRING_SIZE]) {
   }
   int aux = 0;
 
+  pthread_rwlock_wrlock(rwlock);
   for (size_t i = 0; i < num_pairs; i++) {
     if (delete_pair(kvs_table, keys[i]) != 0) {
       if (!aux) {
@@ -110,6 +115,7 @@ int kvs_delete(int fd2, size_t num_pairs, char keys[][MAX_STRING_SIZE]) {
     strcat(buffer,"]\n");
   }
   write(fd2, buffer, strlen(buffer));
+  pthread_rwlock_unlock(rwlock);
   return 0;
 }
 
