@@ -19,7 +19,7 @@ int thread_count = 0;
 typedef struct {
   int fd;
   int fd2;
-  const char* file_name;
+  char file_name [MAX_JOB_FILE_NAME_SIZE];
   int MAX_BACKUPS;
 } ThreadArgs;
 
@@ -145,7 +145,6 @@ next_file:
 void* job_thread_handler(void* arg) {
     ThreadArgs* args = (ThreadArgs*)arg;
     job_handler(args->fd, args->fd2, args->file_name, args->MAX_BACKUPS);
-    free((void*)args->file_name);
     return NULL;
 }
 
@@ -226,7 +225,8 @@ int main(int argc, char* argv[]) {
     ThreadArgs* args = &thread_args[thread_count % MAX_THREADS]; 
     args->fd = fd;
     args->fd2 = fd2;
-    args->file_name = strdup(file_name); 
+    strncpy(args->file_name, file_name, MAX_JOB_FILE_NAME_SIZE - 1);
+    args->file_name[MAX_JOB_FILE_NAME_SIZE - 1] = '\0';
     args->MAX_BACKUPS = MAX_BACKUPS;
 
     if (thread_count < MAX_THREADS) {
@@ -240,7 +240,7 @@ int main(int argc, char* argv[]) {
 
   }  
 
-  for (int i = 0; i < thread_count; i++) {
+  for (int i = 0; i < (thread_count < MAX_THREADS ? thread_count : MAX_THREADS); i++) {
     pthread_join(threads[i], NULL);
   }
   

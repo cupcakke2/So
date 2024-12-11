@@ -20,6 +20,46 @@ static struct timespec delay_to_timespec(unsigned int delay_ms) {
   return (struct timespec){delay_ms / 1000, (delay_ms % 1000) * 1000000};
 }
 
+int compare(const void *a, const void *b) {
+    const char *strA = *(const char **)a;
+    const char *strB = *(const char **)b;
+    return strcmp(strA, strB);
+}
+
+char *sort_parentheses(const char *input_str) {
+    static char result[1024]; // Buffer for the result
+    char *pairs[100];         // Array to store pointers to pairs
+    char temp[1024];          // Temporary buffer for manipulation
+    size_t count = 0;
+
+    // Copy the input string to a modifiable buffer
+    strncpy(temp, input_str + 1, strlen(input_str) - 2); // Skip '[' and ']'
+    temp[strlen(input_str) - 2] = '\0';
+
+    // Split the string into individual pairs
+    char *token = strtok(temp, "(");
+    while (token != NULL) {
+        pairs[count] = token;
+        char *end = strchr(pairs[count], ')');
+        if (end) *end = '\0';
+        count++;
+        token = strtok(NULL, "(");
+    }
+
+    // Sort the pairs using qsort
+    qsort(pairs, count, sizeof(char *), compare);
+
+    char *res_ptr = result;
+    *res_ptr++ = '[';
+    for (size_t i = 0; i < count; i++) {
+        res_ptr += sprintf(res_ptr, "(%s)", pairs[i]);
+    }
+    *res_ptr++ = ']';
+    *res_ptr = '\0';
+
+    return result;
+}
+
 int kvs_init() {
   if (kvs_table != NULL) {
     fprintf(stderr, "KVS state has already been initialized\n");
@@ -56,52 +96,65 @@ int kvs_write(size_t num_pairs, char keys[][MAX_STRING_SIZE], char values[][MAX_
 
   for (size_t i = 0; i < num_pairs; i++) {
 
-    int bucket = hash(keys[i]) % TABLE_SIZE;
+    int entry = hash(keys[i]) % TABLE_SIZE;
 
-    pthread_rwlock_wrlock(&kvs_table->rwlocks[bucket]);
+    pthread_rwlock_wrlock(&kvs_table->rwlocks[entry]);
     if (write_pair(kvs_table, keys[i], values[i]) != 0) {
       fprintf(stderr, "Failed to write keypair (%s,%s)\n", keys[i], values[i]);
     }
 
-    pthread_rwlock_unlock(&kvs_table->rwlocks[bucket]);
+    pthread_rwlock_unlock(&kvs_table->rwlocks[entry]);
   }
 
   return 0;
 }
 
+
+
 int kvs_read(int fd2, size_t num_pairs, char keys[][MAX_STRING_SIZE]) {
+  char buffer[MAX_OUT_BUFFER_SIZE] = ""; 
+  strcat(buffer, "[");
   if (kvs_table == NULL) {
     fprintf(stderr, "KVS state must be initialized\n");
     return 1;
   }
 
+  
+
   for (size_t i = 0; i < num_pairs; i++) {
 
-    int bucket = hash(keys[i]) % TABLE_SIZE;
-    pthread_rwlock_rdlock(&kvs_table->rwlocks[bucket]);
-    char buffer[MAX_OUT_BUFFER_SIZE] = ""; 
-    strcat(buffer, "[");
+    int entry = hash(keys[i]) % TABLE_SIZE;
+    pthread_rwlock_rdlock(&kvs_table->rwlocks[entry]);
+    
+    
 
     char* result = read_pair(kvs_table, keys[i]);
+    printf("%s\n",keys[i]);
     if (result == NULL) {
         strcat(buffer, "(");
         strcat(buffer, keys[i]);
-        strcat(buffer, ",KVSERROR)]");
+        strcat(buffer, ",KVSERROR)");
     } else {
         strcat(buffer, "(");
         strcat(buffer, keys[i]);
         strcat(buffer, ",");
         strcat(buffer, result);
-        strcat(buffer, ")]");
+        strcat(buffer, ")");
     }
 
-    strcat(buffer, "\n"); // Add newline for readability
+   // Add newline for readability
 
     // Write only the valid part of the buffer to the file
-    write(fd2, buffer, strlen(buffer));
+    
     free(result);
-    pthread_rwlock_unlock(&kvs_table->rwlocks[bucket]);
+    pthread_rwlock_unlock(&kvs_table->rwlocks[entry]); 
   }
+
+  strcat(buffer, "]"); 
+  char *sorted_buffer = sort_parentheses(buffer);
+  strcat(sorted_buffer, "\n");
+  write(fd2, sorted_buffer, strlen(sorted_buffer));
+  
   return 0;
 }
 
@@ -115,8 +168,8 @@ int kvs_delete(int fd2, size_t num_pairs, char keys[][MAX_STRING_SIZE]) {
 
   for (size_t i = 0; i < num_pairs; i++) {
 
-    int bucket = hash(keys[i]) % TABLE_SIZE;
-    pthread_rwlock_wrlock(&kvs_table->rwlocks[bucket]);
+    int entry = hash(keys[i]) % TABLE_SIZE;
+    pthread_rwlock_wrlock(&kvs_table->rwlocks[entry]);
     if (delete_pair(kvs_table, keys[i]) != 0) {
       if (!aux) {
         strcat(buffer,"[");
@@ -127,7 +180,7 @@ int kvs_delete(int fd2, size_t num_pairs, char keys[][MAX_STRING_SIZE]) {
       strcat(buffer,",KVSMISSING)");
     }
     
-    pthread_rwlock_unlock(&kvs_table->rwlocks[bucket]);
+    pthread_rwlock_unlock(&kvs_table->rwlocks[entry]);
   }
   if (aux) {
     strcat(buffer,"]\n");
@@ -145,7 +198,7 @@ void kvs_show(int fd2) {
     while (keyNode != NULL) {
       strcat(buffer,"(");
       strcat(buffer,keyNode->key);
-      strcat(buffer,",");
+      strcat(buffer,", ");
       strcat(buffer,keyNode->value);
       strcat(buffer,")\n");
       keyNode = keyNode->next; // Move to the next node
@@ -166,7 +219,7 @@ int kvs_backup(int fd3, int pid_counts, int MAX_BACKUPS) {
   if (pid == 0) {
 
     kvs_show(fd3);  
-    exit(0);
+    _exit(0);
   } else {
   if(pid_counts >= MAX_BACKUPS)
     wait(NULL);
