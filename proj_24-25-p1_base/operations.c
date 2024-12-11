@@ -6,7 +6,6 @@
 #include <pthread.h>
 #include <sys/time.h>
 #include <sys/wait.h>
-#include <pthread.h>
 
 #include "kvs.h"
 #include "constants.h"
@@ -26,8 +25,11 @@ int kvs_init() {
     fprintf(stderr, "KVS state has already been initialized\n");
     return 1;
   }
-
   kvs_table = create_hash_table();
+  pthread_rwlock_init(&kvs_table->tree_lock, NULL);
+  for (int i = 0; i < TABLE_SIZE; i++) {
+    pthread_rwlock_init(&kvs_table->rwlocks[i], NULL);
+  }
   return kvs_table == NULL;
 }
 
@@ -37,35 +39,47 @@ int kvs_terminate() {
     return 1;
   }
 
+  for (int i = 0; i < TABLE_SIZE; i++) {
+    pthread_rwlock_destroy(&kvs_table->rwlocks[i]);
+  }
+  pthread_rwlock_destroy(&kvs_table->tree_lock);
+
   free_table(kvs_table);
   return 0;
 }
 
-int kvs_write(size_t num_pairs, char keys[][MAX_STRING_SIZE], char values[][MAX_STRING_SIZE],pthread_rwlock_t* rwlock) {
+int kvs_write(size_t num_pairs, char keys[][MAX_STRING_SIZE], char values[][MAX_STRING_SIZE]) {
   if (kvs_table == NULL) {
     fprintf(stderr, "KVS state must be initialized\n");
     return 1;
   }
 
-  pthread_rwlock_wrlock(rwlock);
   for (size_t i = 0; i < num_pairs; i++) {
+
+    int bucket = hash(keys[i]) % TABLE_SIZE;
+
+    pthread_rwlock_wrlock(&kvs_table->rwlocks[bucket]);
     if (write_pair(kvs_table, keys[i], values[i]) != 0) {
       fprintf(stderr, "Failed to write keypair (%s,%s)\n", keys[i], values[i]);
     }
+
+    pthread_rwlock_unlock(&kvs_table->rwlocks[bucket]);
   }
-  pthread_rwlock_unlock(rwlock);
+
   return 0;
 }
 
-int kvs_read(int fd2, size_t num_pairs, char keys[][MAX_STRING_SIZE],pthread_rwlock_t* rwlock) {
+int kvs_read(int fd2, size_t num_pairs, char keys[][MAX_STRING_SIZE]) {
   if (kvs_table == NULL) {
     fprintf(stderr, "KVS state must be initialized\n");
     return 1;
   }
 
-  pthread_rwlock_rdlock(rwlock);
   for (size_t i = 0; i < num_pairs; i++) {
-    char buffer[MAX_OUT_BUFFER_SIZE] = ""; // Reinitialize buffer for each iteration
+
+    int bucket = hash(keys[i]) % TABLE_SIZE;
+    pthread_rwlock_rdlock(&kvs_table->rwlocks[bucket]);
+    char buffer[MAX_OUT_BUFFER_SIZE] = ""; 
     strcat(buffer, "[");
 
     char* result = read_pair(kvs_table, keys[i]);
@@ -86,12 +100,12 @@ int kvs_read(int fd2, size_t num_pairs, char keys[][MAX_STRING_SIZE],pthread_rwl
     // Write only the valid part of the buffer to the file
     write(fd2, buffer, strlen(buffer));
     free(result);
+    pthread_rwlock_unlock(&kvs_table->rwlocks[bucket]);
   }
-  pthread_rwlock_unlock(rwlock);
   return 0;
 }
 
-int kvs_delete(int fd2, size_t num_pairs, char keys[][MAX_STRING_SIZE],pthread_rwlock_t* rwlock) {
+int kvs_delete(int fd2, size_t num_pairs, char keys[][MAX_STRING_SIZE]) {
   char buffer[MAX_OUT_BUFFER_SIZE] = ""; // Reinitialize buffer for each iteration
   if (kvs_table == NULL) {
     fprintf(stderr, "KVS state must be initialized\n");
@@ -99,8 +113,10 @@ int kvs_delete(int fd2, size_t num_pairs, char keys[][MAX_STRING_SIZE],pthread_r
   }
   int aux = 0;
 
-  pthread_rwlock_wrlock(rwlock);
   for (size_t i = 0; i < num_pairs; i++) {
+
+    int bucket = hash(keys[i]) % TABLE_SIZE;
+    pthread_rwlock_wrlock(&kvs_table->rwlocks[bucket]);
     if (delete_pair(kvs_table, keys[i]) != 0) {
       if (!aux) {
         strcat(buffer,"[");
@@ -110,17 +126,20 @@ int kvs_delete(int fd2, size_t num_pairs, char keys[][MAX_STRING_SIZE],pthread_r
       strcat(buffer,keys[i]);
       strcat(buffer,",KVSMISSING)");
     }
+    
+    pthread_rwlock_unlock(&kvs_table->rwlocks[bucket]);
   }
   if (aux) {
     strcat(buffer,"]\n");
   }
   write(fd2, buffer, strlen(buffer));
-  pthread_rwlock_unlock(rwlock);
   return 0;
 }
 
 void kvs_show(int fd2) {
   char buffer[MAX_OUT_BUFFER_SIZE] = ""; // Reinitialize buffer for each iteration
+
+  pthread_rwlock_rdlock(&kvs_table->tree_lock);
   for (int i = 0; i < TABLE_SIZE; i++) {
     KeyNode *keyNode = kvs_table->table[i];
     while (keyNode != NULL) {
@@ -133,6 +152,7 @@ void kvs_show(int fd2) {
     }
   }
   write(fd2, buffer, strlen(buffer));
+  pthread_rwlock_unlock(&kvs_table->tree_lock);
 }
 
 int kvs_backup(int fd3, int pid_counts, int MAX_BACKUPS) {

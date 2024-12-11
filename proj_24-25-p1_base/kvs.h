@@ -4,6 +4,7 @@
 #define TABLE_SIZE 26
 
 #include <stddef.h>
+#include <pthread.h>
 
 typedef struct KeyNode {
     char *key;
@@ -13,6 +14,8 @@ typedef struct KeyNode {
 
 typedef struct HashTable {
     KeyNode *table[TABLE_SIZE];
+    pthread_rwlock_t tree_lock;
+    pthread_rwlock_t rwlocks[TABLE_SIZE];
 } HashTable;
 
 /// Creates a new event hash table.
@@ -41,6 +44,11 @@ int delete_pair(HashTable *ht, const char *key);
 /// Frees the hashtable.
 /// @param ht Hash table to be deleted.
 void free_table(HashTable *ht);
+
+// Hash function based on key initial.
+// @param key Lowercase alphabetical string.
+// @return hash.
+int hash(const char *key);
 
 
 #endif  // KVS_H

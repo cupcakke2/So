@@ -13,18 +13,18 @@
 #include <fcntl.h>
 #include <pthread.h>
 
+int pid_counts = 0;
+int thread_count = 0;
+
 typedef struct {
   int fd;
   int fd2;
   const char* file_name;
   int MAX_BACKUPS;
-  pthread_rwlock_t* rwlock;
 } ThreadArgs;
 
 
-int pid_counts = 0;
-
-void job_handler(int fd, int fd2, const char* file_name, int MAX_BACKUPS,pthread_rwlock_t* rwlock) {
+void job_handler(int fd, int fd2, const char* file_name, int MAX_BACKUPS) {
     char keys[MAX_WRITE_SIZE][MAX_STRING_SIZE] = {0};
     char values[MAX_WRITE_SIZE][MAX_STRING_SIZE] = {0};
     size_t num_pairs;
@@ -41,7 +41,7 @@ void job_handler(int fd, int fd2, const char* file_name, int MAX_BACKUPS,pthread
                     continue;
                 }
 
-                if (kvs_write(num_pairs, keys, values,rwlock)) {
+                if (kvs_write(num_pairs, keys, values)) {
                     fprintf(stderr, "Failed to write pair\n");
                 }
                 break;
@@ -53,7 +53,7 @@ void job_handler(int fd, int fd2, const char* file_name, int MAX_BACKUPS,pthread
                     continue;
                 }
 
-                if (kvs_read(fd2, num_pairs, keys,rwlock)) {
+                if (kvs_read(fd2, num_pairs, keys)) {
                     fprintf(stderr, "Failed to read pair\n");
                 }
                 break;
@@ -66,7 +66,7 @@ void job_handler(int fd, int fd2, const char* file_name, int MAX_BACKUPS,pthread
                     continue;
                 }
 
-                if (kvs_delete(fd2, num_pairs, keys,rwlock)) {
+                if (kvs_delete(fd2, num_pairs, keys)) {
                     fprintf(stderr, "Failed to delete pair\n");
                 }
                 break;
@@ -144,18 +144,10 @@ next_file:
 
 void* job_thread_handler(void* arg) {
     ThreadArgs* args = (ThreadArgs*)arg;
-    int fd = args->fd;
-    int fd2 = args->fd2;
-    const char* file_name = args->file_name;
-    int MAX_BACKUPS = args->MAX_BACKUPS;
-    pthread_rwlock_t* rwlock = args->rwlock;
-
-    job_handler(fd, fd2, file_name, MAX_BACKUPS,rwlock);
-    free(args);  // Free the allocated memory for the arguments
-
+    job_handler(args->fd, args->fd2, args->file_name, args->MAX_BACKUPS);
+  // Free strdup'ed file_name.
     return NULL;
 }
-
 
 
 int main(int argc, char* argv[]) {
@@ -170,9 +162,7 @@ int main(int argc, char* argv[]) {
     return 1;
   }
 
-  int MAX_BACKUPS;
-  int MAX_THREADS;
-  int thread_count = 0;
+  int MAX_BACKUPS,MAX_THREADS;
   DIR* dirp;
   struct dirent *dp;
 
@@ -183,9 +173,7 @@ int main(int argc, char* argv[]) {
   MAX_THREADS = atoi(argv[3]);
 
   pthread_t threads[MAX_THREADS];
-
-  pthread_rwlock_t rwlock;
-  pthread_rwlock_init(&rwlock, NULL);
+  ThreadArgs thread_args[MAX_THREADS];
 
   
   if (dirp == NULL){
@@ -203,7 +191,6 @@ int main(int argc, char* argv[]) {
     dp = readdir(dirp);
 
     if (dp == NULL){
-      kvs_terminate();
       break;
     }
 
@@ -236,31 +223,25 @@ int main(int argc, char* argv[]) {
         return EXIT_FAILURE;
     }
 
-   ThreadArgs* args = malloc(sizeof(ThreadArgs));
+    ThreadArgs* args = &thread_args[thread_count % MAX_THREADS]; 
     args->fd = fd;
     args->fd2 = fd2;
-    args->file_name = file_name;  
+    args->file_name = strdup(file_name); 
     args->MAX_BACKUPS = MAX_BACKUPS;
-    args->rwlock = &rwlock;
 
-    // Create a new thread to handle the job
     if (thread_count < MAX_THREADS) {
-      pthread_create(&threads[thread_count], NULL, job_thread_handler, (void*)args);
-      thread_count++;
+        pthread_create(&threads[thread_count], NULL, job_thread_handler, (void*)args);
+        thread_count++;
     } else {
-      // Wait for a thread to finish before creating a new one
-      pthread_join(threads[thread_count - 1], NULL);
-      pthread_create(&threads[thread_count], NULL, job_thread_handler, (void*)args);
-      thread_count++;
+        pthread_join(threads[thread_count % MAX_THREADS], NULL);
+        pthread_create(&threads[thread_count % MAX_THREADS], NULL, job_thread_handler, (void*)args);
+        thread_count++;
     }
-
   }  
 
   for (int i = 0; i < thread_count; i++) {
     pthread_join(threads[i], NULL);
   }
-
-  pthread_rwlock_destroy(&rwlock);
+  kvs_terminate();
   closedir(dirp);
-  return 0;
 }
