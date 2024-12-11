@@ -9,7 +9,6 @@
 
 #include "kvs.h"
 #include "constants.h"
-#include "structs.h"
 
 static struct HashTable* kvs_table = NULL;
 
@@ -41,9 +40,7 @@ int kvs_terminate() {
   return 0;
 }
 
-int kvs_write(size_t num_pairs, char keys[][MAX_STRING_SIZE], char values[][MAX_STRING_SIZE],fd_with_mutex file) {
-
-  pthread_rwlock_wrlock(&file.rwlock);
+int kvs_write(size_t num_pairs, char keys[][MAX_STRING_SIZE], char values[][MAX_STRING_SIZE]) {
   if (kvs_table == NULL) {
     fprintf(stderr, "KVS state must be initialized\n");
     return 1;
@@ -54,7 +51,7 @@ int kvs_write(size_t num_pairs, char keys[][MAX_STRING_SIZE], char values[][MAX_
       fprintf(stderr, "Failed to write keypair (%s,%s)\n", keys[i], values[i]);
     }
   }
-  pthread_rwlock_unlock(&file.rwlock);
+
   return 0;
 }
 
