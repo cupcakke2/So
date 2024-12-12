@@ -210,7 +210,6 @@ int main(int argc, char* argv[]) {
 
     //Verification that the current file is a .job and if so, open in it read mode
     if (strcmp(dot+1,"job")==0){
-      printf("JOB\n");
       fd = open(file_name, O_RDONLY); 
     }
     
