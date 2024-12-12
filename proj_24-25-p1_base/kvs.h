@@ -12,6 +12,7 @@ typedef struct KeyNode {
     struct KeyNode *next;
 } KeyNode;
 
+//Added a rwlock for the whole tree as well has its linked list
 typedef struct HashTable {
     KeyNode *table[TABLE_SIZE];
     pthread_rwlock_t tree_lock;
