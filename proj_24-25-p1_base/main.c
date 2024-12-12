@@ -219,7 +219,7 @@ int main(int argc, char* argv[]) {
         return EXIT_FAILURE;
     }
 
-    //Open the .out file on which the output for the corresponding .job file will be written
+    //Open the .out file on which the output for the corresponding .job file will be written (if the file was indeed a .job)
     if (strcmp(dot+1,"job")==0){
         fd2 = open(file_out, O_CREAT | O_TRUNC | O_WRONLY, S_IRUSR | S_IWUSR);
     }
