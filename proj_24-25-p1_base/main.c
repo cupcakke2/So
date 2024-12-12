@@ -187,7 +187,7 @@ int main(int argc, char* argv[]) {
   for (;;){
     char file_name [MAX_JOB_FILE_NAME_SIZE] = "";
     char file_out [MAX_JOB_FILE_NAME_SIZE] = "";
-    int fd;
+    int fd,fd2;
 
 
     dp = readdir(dirp);
@@ -210,6 +210,7 @@ int main(int argc, char* argv[]) {
 
     //Verification that the current file is a .job and if so, open in it read mode
     if (strcmp(dot+1,"job")==0){
+      printf("JOB\n");
       fd = open(file_name, O_RDONLY); 
     }
     
@@ -219,8 +220,9 @@ int main(int argc, char* argv[]) {
     }
 
     //Open the .out file on which the output for the corresponding .job file will be written
-    int fd2 = open(file_out, O_CREAT | O_TRUNC | O_WRONLY, S_IRUSR | S_IWUSR);
-
+    if (strcmp(dot+1,"job")==0){
+        fd2 = open(file_out, O_CREAT | O_TRUNC | O_WRONLY, S_IRUSR | S_IWUSR);
+    }
     
     if (fd2 < 0) {
         perror("Opening error in .out file.");
