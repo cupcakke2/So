@@ -22,6 +22,8 @@ int read_string(int fd, char *str);
 /// @return On success, returns 1, on error, returns -1
 int write_all(int fd, const void *buffer, size_t size);
 
+/// Inserts a delay
+/// @param time_ms delay time 
 void delay(unsigned int time_ms);
 
 #endif  // COMMON_IO_H

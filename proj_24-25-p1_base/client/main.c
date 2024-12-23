@@ -6,9 +6,10 @@
 #include <unistd.h>
 
 #include "parser.h"
-#include "src/client/api.h"
-#include "src/common/constants.h"
-#include "src/common/io.h"
+#include "api.h"
+#include "../common/constants.h"
+#include "../common/io.h"
+#include "../common/io.c"
 
 
 int main(int argc, char* argv[]) {
@@ -17,19 +18,25 @@ int main(int argc, char* argv[]) {
     return 1;
   }
 
+
+  char reg_pipe_path[256] = "../server/";
   char req_pipe_path[256] = "/tmp/req";
   char resp_pipe_path[256] = "/tmp/resp";
   char notif_pipe_path[256] = "/tmp/notif";
-
   char keys[MAX_NUMBER_SUB][MAX_STRING_SIZE] = {0};
   unsigned int delay_ms;
   size_t num;
+  int fserv;
 
   strncat(req_pipe_path, argv[1], strlen(argv[1]) * sizeof(char));
   strncat(resp_pipe_path, argv[1], strlen(argv[1]) * sizeof(char));
   strncat(notif_pipe_path, argv[1], strlen(argv[1]) * sizeof(char));
+  strncat(reg_pipe_path, argv[2], strlen(argv[2]) * sizeof(char));
+  
 
   // TODO open pipes
+  if ((fserv = open (reg_pipe_path,O_WRONLY))<0) exit(1);
+  close(fserv);
 
   while (1) {
     switch (get_next(STDIN_FILENO)) {

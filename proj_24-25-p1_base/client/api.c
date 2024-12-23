@@ -1,6 +1,6 @@
 #include "api.h"
-#include "src/common/constants.h"
-#include "src/common/protocol.h"
+#include "../common/constants.h"
+#include "../common/protocol.h"
 
 int kvs_connect(char const* req_pipe_path, char const* resp_pipe_path, char const* server_pipe_path,
                 char const* notif_pipe_path, int* notif_pipe) {
