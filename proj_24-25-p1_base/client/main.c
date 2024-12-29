@@ -13,10 +13,12 @@
 
 
 int main(int argc, char* argv[]) {
-  if (argc < 3) {
+  if (argc != 3) {
     fprintf(stderr, "Usage: %s <client_unique_id> <register_pipe_path>\n", argv[0]);
     return 1;
   }
+
+  
 
 
   char reg_pipe_path[MAX_PIPE_PATH_LENGTH] = "/tmp/";
@@ -34,16 +36,26 @@ int main(int argc, char* argv[]) {
   strncat(notif_pipe_path, argv[1], strlen(argv[1]) * sizeof(char));
   strncat(reg_pipe_path, argv[2], strlen(argv[2]) * sizeof(char));
   
-
+  
  
   kvs_connect(req_pipe_path,resp_pipe_path,reg_pipe_path,notif_pipe_path);
+
 
   // TODO open pipes
   if ((freq = open (reg_pipe_path,O_RDWR))<0) exit(1);
   if ((fresp = open (reg_pipe_path,O_RDWR))<0) exit(1);
   if ((fnotif = open (reg_pipe_path,O_RDWR))<0) exit(1);
-
   if ((freg = open (reg_pipe_path,O_WRONLY))<0) exit(1);
+
+  while(strlen(req_pipe_path)!=MAX_PIPE_PATH_LENGTH){
+    strcat(req_pipe_path,"0");
+  }
+   while(strlen(resp_pipe_path)!=MAX_PIPE_PATH_LENGTH){
+    strcat(resp_pipe_path,"0");
+  }
+   while(strlen(notif_pipe_path)!=MAX_PIPE_PATH_LENGTH){
+    strcat(notif_pipe_path,"0");
+  }
   
   sprintf(connect_message,"1|%s|%s|%s",req_pipe_path,resp_pipe_path,notif_pipe_path);
   printf("%s\n",connect_message);
