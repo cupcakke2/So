@@ -23,7 +23,6 @@ int main(int argc, char* argv[]) {
   char req_pipe_path[256] = "/tmp/req";
   char resp_pipe_path[256] = "/tmp/resp";
   char notif_pipe_path[256] = "/tmp/notif";
-  char buffer[100]="The pipe is working,honey!";
   char keys[MAX_NUMBER_SUB][MAX_STRING_SIZE] = {0};
   unsigned int delay_ms;
   size_t num;
@@ -38,7 +37,6 @@ int main(int argc, char* argv[]) {
   // TODO open pipes
   if ((fserv = open (reg_pipe_path,O_WRONLY))<0) exit(1);
 
-  write(fserv,buffer,strlen(buffer));
   close(fserv);
 
   while (1) {

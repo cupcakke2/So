@@ -170,7 +170,6 @@ int main(int argc, char* argv[]) {
   DIR* dirp;
   struct dirent *dp;
   int fserv;
-  char buffer[100];
 
   fflush(stdout);
 
@@ -188,8 +187,7 @@ int main(int argc, char* argv[]) {
 
    if((fserv= open(reg_pipe_path, O_RDONLY)) < 0) exit(1);
 
-   read(fserv,buffer,100);
-   printf("%s\n",buffer);
+ 
 
    
    close(fserv);
