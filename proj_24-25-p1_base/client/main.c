@@ -19,14 +19,15 @@ int main(int argc, char* argv[]) {
   }
 
 
-  char reg_pipe_path[256] = "/tmp/";
-  char req_pipe_path[256] = "/tmp/req";
-  char resp_pipe_path[256] = "/tmp/resp";
-  char notif_pipe_path[256] = "/tmp/notif";
+  char reg_pipe_path[MAX_PIPE_PATH_LENGTH] = "/tmp/";
+  char req_pipe_path[MAX_PIPE_PATH_LENGTH] = "/tmp/req";
+  char resp_pipe_path[MAX_PIPE_PATH_LENGTH] = "/tmp/resp";
+  char notif_pipe_path[MAX_PIPE_PATH_LENGTH] = "/tmp/notif";
   char keys[MAX_NUMBER_SUB][MAX_STRING_SIZE] = {0};
+  char connect_message[MAX_CONNECT_MESSAGE_SIZE] = "";
   unsigned int delay_ms;
   size_t num;
-  int fserv;
+  int freg,freq,fresp,fnotif;
 
   strncat(req_pipe_path, argv[1], strlen(argv[1]) * sizeof(char));
   strncat(resp_pipe_path, argv[1], strlen(argv[1]) * sizeof(char));
@@ -34,11 +35,21 @@ int main(int argc, char* argv[]) {
   strncat(reg_pipe_path, argv[2], strlen(argv[2]) * sizeof(char));
   
 
+ 
+  kvs_connect(req_pipe_path,resp_pipe_path,reg_pipe_path,notif_pipe_path);
+
   // TODO open pipes
-  if ((fserv = open (reg_pipe_path,O_WRONLY))<0) exit(1);
+  if ((freq = open (reg_pipe_path,O_RDWR))<0) exit(1);
+  if ((fresp = open (reg_pipe_path,O_RDWR))<0) exit(1);
+  if ((fnotif = open (reg_pipe_path,O_RDWR))<0) exit(1);
 
-  close(fserv);
+  if ((freg = open (reg_pipe_path,O_WRONLY))<0) exit(1);
+  
+  sprintf(connect_message,"1|%s|%s|%s",req_pipe_path,resp_pipe_path,notif_pipe_path);
+  printf("%s\n",connect_message);
+  write(freg,connect_message,MAX_CONNECT_MESSAGE_SIZE);
 
+  
   while (1) {
     switch (get_next(STDIN_FILENO)) {
       case CMD_DISCONNECT:
@@ -100,4 +111,6 @@ int main(int argc, char* argv[]) {
         break;
     }
   }
+  close(freg);
+
 }

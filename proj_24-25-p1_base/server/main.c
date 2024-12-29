@@ -166,7 +166,7 @@ int main(int argc, char* argv[]) {
   }
 
   int MAX_BACKUPS,MAX_THREADS;
-  char reg_pipe_path[256]="/tmp/";
+  char reg_pipe_path[MAX_PIPE_PATH_LENGTH]="/tmp/";
   DIR* dirp;
   struct dirent *dp;
   int fserv;
@@ -187,10 +187,11 @@ int main(int argc, char* argv[]) {
 
    if((fserv= open(reg_pipe_path, O_RDONLY)) < 0) exit(1);
 
+
  
 
    
-   close(fserv);
+   
 
 
   if (dirp == NULL){
@@ -268,6 +269,7 @@ int main(int argc, char* argv[]) {
     pthread_join(threads[i], NULL);
   }
   
+  close(fserv);
   unlink(reg_pipe_path);
   kvs_terminate();
   closedir(dirp);

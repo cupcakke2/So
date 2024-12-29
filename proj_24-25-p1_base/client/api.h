@@ -7,10 +7,11 @@
 /// Connects to a kvs server.
 /// @param req_pipe_path Path to the name pipe to be created for requests.
 /// @param resp_pipe_path Path to the name pipe to be created for responses.
-/// @param server_pipe_path Path to the name pipe where the server is listening.
+/// @param reg_pipe_path Path to the name pipe where the server is listening.
+/// @param notif_pipe_path Path to the name pipe to be created for notifications.
 /// @return 0 if the connection was established successfully, 1 otherwise.
-int kvs_connect(char const* req_pipe_path, char const* resp_pipe_path, char const* server_pipe_path,
-                char const* notif_pipe_path, int* notif_pipe);
+int kvs_connect(char const* req_pipe_path, char const* resp_pipe_path, char const* reg_pipe_path,
+                char const* notif_pipe_path);
 /// Disconnects from an KVS server.
 /// @return 0 in case of success, 1 otherwise.
 int kvs_disconnect(void);
