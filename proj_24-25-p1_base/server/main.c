@@ -191,7 +191,7 @@ int main(int argc, char* argv[]) {
    read(freg,connect_message,MAX_CONNECT_MESSAGE_SIZE);
 
    printf("%s\n",connect_message);
-   printf("%ld\n",strlen(connect_message));
+   printf("Total size including '\\0': %zu\n", sizeof(connect_message));
 
 
    
