@@ -10,10 +10,10 @@
 #include <string.h>
 
 void pad_pipe_path(char* dest, const char* src) {
-    strncpy(dest, src,  MAX_PIPE_PATH_LENGTH - 1); // Copy at most max_size - 1 characters
-    dest[MAX_PIPE_PATH_LENGTH - 1] = '\0';       // Ensure null termination
+    strncpy(dest, src,  MAX_PIPE_PATH_LENGTH - 1); 
+    dest[MAX_PIPE_PATH_LENGTH - 1] = '\0';       
     for (size_t i = strlen(src); i < MAX_PIPE_PATH_LENGTH; i++) {
-        dest[i] = '\0';              // Fill remaining space with '\0'
+        dest[i] = '\0';              
     }
 }
 
@@ -41,11 +41,22 @@ int kvs_connect(char const* req_pipe_path, char const* resp_pipe_path, char cons
   pad_pipe_path(padded_resp,resp_pipe_path);
   pad_pipe_path(padded_notif,notif_pipe_path);
 
-  
-  sprintf(connect_message,"1%s%s%s",padded_req,padded_resp,padded_notif);
+  size_t offset = 0;
+  memcpy(connect_message + offset, "1", 1);  
+  offset += 1;
+
+  memcpy(connect_message + offset, padded_req, sizeof(padded_req) ); 
+  offset += sizeof(padded_req);
+
+  memcpy(connect_message + offset, padded_resp, sizeof(padded_resp) );  
+  offset += sizeof(padded_resp);
+
+  memcpy(connect_message + offset, padded_notif, sizeof(padded_notif));  
+  offset += sizeof(padded_notif) ;
+
+
   write(freg,connect_message,MAX_CONNECT_MESSAGE_SIZE);
 
-  // TODO: connect
   return 0;
 }
  

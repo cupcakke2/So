@@ -168,6 +168,12 @@ int main(int argc, char* argv[]) {
   int MAX_BACKUPS,MAX_THREADS;
   char reg_pipe_path[MAX_PIPE_PATH_LENGTH]="/tmp/";
   char connect_message[MAX_CONNECT_MESSAGE_SIZE];
+  char connect_opcode;
+  char req_pipe_path[MAX_PIPE_PATH_LENGTH];
+  char resp_pipe_path[MAX_PIPE_PATH_LENGTH];
+  char notif_pipe_path[MAX_PIPE_PATH_LENGTH];
+  
+  
   DIR* dirp;
   struct dirent *dp;
   int freg;
@@ -182,19 +188,33 @@ int main(int argc, char* argv[]) {
   pthread_t threads[MAX_THREADS];
   ThreadArgs thread_args[MAX_THREADS];
 
-   unlink(reg_pipe_path);
+  unlink(reg_pipe_path);
 
-   if(mkfifo(reg_pipe_path, 0777) < 0) exit (1);
+  if(mkfifo(reg_pipe_path, 0777) < 0) exit (1);
 
-   if((freg = open(reg_pipe_path, O_RDONLY)) < 0) exit(1);
+  if((freg = open(reg_pipe_path, O_RDONLY)) < 0) exit(1);
 
-   read(freg,connect_message,MAX_CONNECT_MESSAGE_SIZE);
-
-   printf("%s\n",connect_message);
-   printf("Total size including '\\0': %zu\n", sizeof(connect_message));
+  read(freg,connect_message,MAX_CONNECT_MESSAGE_SIZE);
 
 
-   
+  for(size_t i = 0; i< sizeof(connect_message); i++){
+    connect_opcode = connect_message[0];
+    if (i == 0) {
+        connect_opcode = connect_message[i];
+    }
+    else if (i>0 && i<=40){
+        req_pipe_path[i-1] = connect_message[i];
+    }
+    else if (i>=41 && i<=80){
+        resp_pipe_path[i-41] = connect_message[i];
+    }
+    else if (i>=81 && i<=120){
+        notif_pipe_path[i-81] = connect_message[i];
+    }
+  }
+ 
+  printf("Opcode: %c, Req: %s, Resp: %s,Notif: %s\n",connect_opcode,req_pipe_path,resp_pipe_path,notif_pipe_path);
+
   if (dirp == NULL){
     perror("Failure at opening directory"); 
     return EXIT_FAILURE;
