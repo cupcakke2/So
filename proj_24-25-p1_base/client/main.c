@@ -26,10 +26,9 @@ int main(int argc, char* argv[]) {
   char resp_pipe_path[MAX_PIPE_PATH_LENGTH] = "/tmp/resp";
   char notif_pipe_path[MAX_PIPE_PATH_LENGTH] = "/tmp/notif";
   char keys[MAX_NUMBER_SUB][MAX_STRING_SIZE] = {0};
-  char connect_message[MAX_CONNECT_MESSAGE_SIZE] = "";
   unsigned int delay_ms;
   size_t num;
-  int freg,freq,fresp,fnotif;
+  int freq,fresp,fnotif;
 
   strncat(req_pipe_path, argv[1], strlen(argv[1]) * sizeof(char));
   strncat(resp_pipe_path, argv[1], strlen(argv[1]) * sizeof(char));
@@ -41,35 +40,18 @@ int main(int argc, char* argv[]) {
   kvs_connect(req_pipe_path,resp_pipe_path,reg_pipe_path,notif_pipe_path);
 
   
-
-  
   // TODO open pipes
   if ((freq = open (req_pipe_path,O_RDWR))<0) exit(1);
   if ((fresp = open (resp_pipe_path,O_RDWR))<0) exit(1);
   if ((fnotif = open (notif_pipe_path,O_RDWR))<0) exit(1);
-  if ((freg = open (reg_pipe_path,O_WRONLY))<0) exit(1);
-
-  while(strlen(req_pipe_path)!=MAX_PIPE_PATH_LENGTH-1){
-    strcat(req_pipe_path,"0");
-  }
   
-  while(strlen(resp_pipe_path)!=MAX_PIPE_PATH_LENGTH-1){
-    strcat(resp_pipe_path,"0");
-  }
-  while(strlen(notif_pipe_path)!=MAX_PIPE_PATH_LENGTH-1){
-    strcat(notif_pipe_path,"0");
-  }
-
-
   
-  sprintf(connect_message,"1|%s|%s|%s",req_pipe_path,resp_pipe_path,notif_pipe_path);
-  write(freg,connect_message,MAX_CONNECT_MESSAGE_SIZE);
 
   
   while (1) {
     switch (get_next(STDIN_FILENO)) {
       case CMD_DISCONNECT:
-        if (kvs_disconnect(req_pipe_path,resp_pipe_path,reg_pipe_path,notif_pipe_path,freg,fresp,freq,fnotif) != 0) {
+        if (kvs_disconnect() != 0) {
           fprintf(stderr, "Failed to disconnect to the server\n");
           return 1;
         }
@@ -128,6 +110,13 @@ int main(int argc, char* argv[]) {
     }
   }
   
-  kvs_disconnect(req_pipe_path,resp_pipe_path,reg_pipe_path,notif_pipe_path,freg,fresp,freq,fnotif);
+
+  unlink(req_pipe_path);
+  unlink(resp_pipe_path);
+  unlink(reg_pipe_path);
+  unlink(notif_pipe_path);
+  close(fresp);
+  close(freq);
+  close(fnotif);
 
 }

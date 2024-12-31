@@ -189,6 +189,11 @@ int main(int argc, char* argv[]) {
    if((freg = open(reg_pipe_path, O_RDONLY)) < 0) exit(1);
 
    read(freg,connect_message,MAX_CONNECT_MESSAGE_SIZE);
+
+   printf("%s\n",connect_message);
+   printf("%ld\n",strlen(connect_message));
+
+
    
   if (dirp == NULL){
     perror("Failure at opening directory"); 
