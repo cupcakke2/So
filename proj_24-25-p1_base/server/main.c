@@ -167,9 +167,10 @@ int main(int argc, char* argv[]) {
 
   int MAX_BACKUPS,MAX_THREADS;
   char reg_pipe_path[MAX_PIPE_PATH_LENGTH]="/tmp/";
+  char connect_message[MAX_CONNECT_MESSAGE_SIZE];
   DIR* dirp;
   struct dirent *dp;
-  int fserv;
+  int freg;
 
   fflush(stdout);
 
@@ -185,15 +186,10 @@ int main(int argc, char* argv[]) {
 
    if(mkfifo(reg_pipe_path, 0777) < 0) exit (1);
 
-   if((fserv= open(reg_pipe_path, O_RDONLY)) < 0) exit(1);
+   if((freg = open(reg_pipe_path, O_RDONLY)) < 0) exit(1);
 
-
- 
-
+   read(freg,connect_message,MAX_CONNECT_MESSAGE_SIZE);
    
-   
-
-
   if (dirp == NULL){
     perror("Failure at opening directory"); 
     return EXIT_FAILURE;
@@ -269,7 +265,7 @@ int main(int argc, char* argv[]) {
     pthread_join(threads[i], NULL);
   }
   
-  close(fserv);
+  close(freg);
   unlink(reg_pipe_path);
   kvs_terminate();
   closedir(dirp);

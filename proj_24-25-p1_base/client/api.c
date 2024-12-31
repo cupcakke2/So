@@ -6,20 +6,33 @@
 #include "../common/constants.h"
 #include "../common/protocol.h"
 #include <stdio.h>
+#include <unistd.h>
 
 int kvs_connect(char const* req_pipe_path, char const* resp_pipe_path, char const* reg_pipe_path,
                 char const* notif_pipe_path) {
 
-    
-  if(mkfifo(req_pipe_path, 0777) < 0)  exit (1);
-  if(mkfifo(resp_pipe_path, 0777) < 0)  exit (1);
-  if(mkfifo(notif_pipe_path, 0777) < 0)  exit (1);
+  unlink(req_pipe_path);
+  unlink(resp_pipe_path);
+  unlink(notif_pipe_path);
+  
+  if(mkfifo(req_pipe_path, 0777) < 0)  return 1;
+  if(mkfifo(resp_pipe_path, 0777) < 0)  return 1;
+  if(mkfifo(notif_pipe_path, 0777) < 0)  return 1;
   // TODO: connect
   return 0;
 }
  
-int kvs_disconnect(void) {
-  // close pipes and unlink pipe files
+int kvs_disconnect(char const* req_pipe_path, char const* resp_pipe_path, char const* reg_pipe_path,
+                char const* notif_pipe_path, int freg, int fresp, int freq, int fnotif) {
+
+  unlink(req_pipe_path);
+  unlink(resp_pipe_path);
+  unlink(reg_pipe_path);
+  unlink(notif_pipe_path);
+  close(freg);
+  close(fresp);
+  close(freq);
+  close(fnotif);
   return 0;
 }
 
