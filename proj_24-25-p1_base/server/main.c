@@ -249,6 +249,7 @@ int main(int argc, char* argv[]) {
     read(freq,request,MAX_REQUEST_SIZE);
    
     write(1,request,strlen(request));
+    printf("%ld\n",sizeof(request));
 
     if(request[0] == '3'){
         printf("heyy\n");
