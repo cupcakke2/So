@@ -199,7 +199,6 @@ int main(int argc, char* argv[]) {
 
 
   for(size_t i = 0; i< sizeof(connect_message); i++){
-    connect_opcode = connect_message[0];
     if (i == 0) {
         connect_opcode = connect_message[i];
     }
@@ -230,7 +229,9 @@ int main(int argc, char* argv[]) {
 
   if ((fresp = open (resp_pipe_path,O_WRONLY))<0) exit(1);
 
+
   write(fresp,connect_response,MAX_CONNECT_RESPONSE_SIZE);
+  close(fresp);
 
 
   if (dirp == NULL){
@@ -243,19 +244,34 @@ int main(int argc, char* argv[]) {
     char file_name [MAX_JOB_FILE_NAME_SIZE] = "";
     char file_out [MAX_JOB_FILE_NAME_SIZE] = "";
     char request[MAX_REQUEST_SIZE];
+    char subscribe_key[MAX_KEY_SIZE];
+    char subscribe_response[MAX_SUBSCRIBE_RESPONSE_SIZE];
+    char opcode;
     int fd,fd2,freq;
 
     if ((freq = open (req_pipe_path,O_RDONLY))<0) exit(1);
     read(freq,request,MAX_REQUEST_SIZE);
    
-    write(1,request,strlen(request));
-    printf("%ld\n",sizeof(request));
+    
 
     if(request[0] == '3'){
-        printf("heyy\n");
+
+        for(size_t i = 0; i< sizeof(request); i++){
+            if (i == 0) {
+                opcode = request[i];
+            }
+            else if (i>0 && i<=41){
+                subscribe_key[i-1] = request[i];
+            }
+        }
+        
+        sprintf(subscribe_response,"%c%d",opcode,exists_key(subscribe_key));
+        if ((fresp = open (resp_pipe_path,O_WRONLY))<0) exit(1);
+        write(fresp,subscribe_response,MAX_SUBSCRIBE_RESPONSE_SIZE);
+        close(fresp);
+ 
+        
     }
-
-
 
 
     dp = readdir(dirp);

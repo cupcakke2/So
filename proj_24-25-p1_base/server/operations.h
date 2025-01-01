@@ -2,6 +2,8 @@
 #define KVS_OPERATIONS_H
 
 #include <stddef.h>
+#include "../common/constants.h"
+
 
 /// Initializes the KVS state.
 /// @return 0 if the KVS state was initialized successfully, 1 otherwise.
@@ -25,6 +27,12 @@ int kvs_write(size_t num_pairs, char keys[][MAX_STRING_SIZE], char values[][MAX_
 /// @param fd File descriptor to write the (successful) output.
 /// @return 0 if the key reading, 1 otherwise.
 int kvs_read(int fd2, size_t num_pairs, char keys[][MAX_STRING_SIZE]);
+
+
+///Finds out if key exists
+/// @param key Key to be searched
+/// @return 1 if key exists, 0 otherwise
+int exists_key(char key[MAX_KEY_SIZE]);
 
 /// Deletes key value pairs from the KVS.
 /// @param fd2 File descriptor to be written in

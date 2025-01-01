@@ -94,9 +94,11 @@ int kvs_subscribe(const char* key) {
   sprintf(subscribe_message,"3%s",padded_key);
   write(freq,subscribe_message,sizeof(subscribe_message));
 
-  if ((fresp = open (global_request_pipe,O_WRONLY))<0) exit(1);
+  if ((fresp = open (global_response_pipe,O_RDONLY))<0) exit(1);
   read(fresp,subscribe_response,MAX_SUBSCRIBE_RESPONSE_SIZE);
 
+  printf("Server returned %c for operation: subscribe\n",subscribe_response[1]);
+ 
   if(subscribe_response[1]==1) return 1;
   if(subscribe_response[0]==0) return 0;
 

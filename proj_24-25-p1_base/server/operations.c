@@ -7,6 +7,7 @@
 #include <sys/time.h>
 #include <sys/wait.h>
 #include "kvs.h"
+#include "../common/constants.h"
 #include "constants.h"
 
 static struct HashTable* kvs_table = NULL;
@@ -145,6 +146,29 @@ int kvs_read(int fd2, size_t num_pairs, char keys[][MAX_STRING_SIZE]) {
   write(fd2, sorted_buffer, strlen(sorted_buffer));
   
   return 0;
+}
+
+
+int exists_key(char key[MAX_KEY_SIZE]) {
+
+  if (kvs_table == NULL) {
+    fprintf(stderr, "KVS state must be initialized\n");
+    return 1;
+  }
+
+  int entry = hash(key) % TABLE_SIZE;
+  pthread_rwlock_rdlock(&kvs_table->rwlocks[entry]);
+  char* result = read_pair(kvs_table,key);
+  if (result == NULL) {
+    free(result);
+    pthread_rwlock_unlock(&kvs_table->rwlocks[entry]);
+    return 0;
+  } else {
+    free(result);
+    pthread_rwlock_unlock(&kvs_table->rwlocks[entry]);
+    return 1;
+  }
+   
 }
 
 int kvs_delete(int fd2, size_t num_pairs, char keys[][MAX_STRING_SIZE]) {
