@@ -5,3 +5,4 @@
 #define MAX_STRING_SIZE 40
 #define MAX_NUMBER_SUB 10
 #define MAX_CONNECT_MESSAGE_SIZE 121 //tamanho max da mensagem de conexao 
+#define MAX_CONNECT_RESPONSE_SIZE 2//tamanho max da mensagem de conexao (op_code + char result)

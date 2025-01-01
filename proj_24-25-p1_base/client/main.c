@@ -13,23 +13,23 @@
 
 
 int main(int argc, char* argv[]) {
+
   if (argc != 3) {
     fprintf(stderr, "Usage: %s <client_unique_id> <register_pipe_path>\n", argv[0]);
     return 1;
   }
 
-  
-
-
   char reg_pipe_path[MAX_PIPE_PATH_LENGTH] = "/tmp/";
   char req_pipe_path[MAX_PIPE_PATH_LENGTH] = "/tmp/req";
   char resp_pipe_path[MAX_PIPE_PATH_LENGTH] = "/tmp/resp";
   char notif_pipe_path[MAX_PIPE_PATH_LENGTH] = "/tmp/notif";
+  char connect_response[MAX_CONNECT_RESPONSE_SIZE];
   char keys[MAX_NUMBER_SUB][MAX_STRING_SIZE] = {0};
   unsigned int delay_ms;
   size_t num;
   int freq,fresp,fnotif;
 
+  fflush(stdout);
   strncat(req_pipe_path, argv[1], strlen(argv[1]) * sizeof(char));
   strncat(resp_pipe_path, argv[1], strlen(argv[1]) * sizeof(char));
   strncat(notif_pipe_path, argv[1], strlen(argv[1]) * sizeof(char));
@@ -37,15 +37,21 @@ int main(int argc, char* argv[]) {
   
   
  
-  kvs_connect(req_pipe_path,resp_pipe_path,reg_pipe_path,notif_pipe_path);
+  if(kvs_connect(req_pipe_path,resp_pipe_path,reg_pipe_path,notif_pipe_path)){
+    printf("Server returned 1 for operation: connect");
+  }
 
   
   // TODO open pipes
   if ((freq = open (req_pipe_path,O_RDWR))<0) exit(1);
-  if ((fresp = open (resp_pipe_path,O_RDWR))<0) exit(1);
+  if ((fresp = open (resp_pipe_path,O_RDONLY))<0) exit(1);
   if ((fnotif = open (notif_pipe_path,O_RDWR))<0) exit(1);
-  
-  
+
+  read(fresp,connect_response,MAX_CONNECT_RESPONSE_SIZE);
+
+  printf("Server returned %c for operation: connect\n",connect_response[1]);
+
+ 
 
   
   while (1) {

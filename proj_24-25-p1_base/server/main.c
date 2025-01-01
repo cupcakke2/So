@@ -168,15 +168,16 @@ int main(int argc, char* argv[]) {
   int MAX_BACKUPS,MAX_THREADS;
   char reg_pipe_path[MAX_PIPE_PATH_LENGTH]="/tmp/";
   char connect_message[MAX_CONNECT_MESSAGE_SIZE];
+  char connect_response[MAX_CONNECT_RESPONSE_SIZE];
   char connect_opcode;
   char req_pipe_path[MAX_PIPE_PATH_LENGTH];
   char resp_pipe_path[MAX_PIPE_PATH_LENGTH];
   char notif_pipe_path[MAX_PIPE_PATH_LENGTH];
-  
+  int freg, fresp;
   
   DIR* dirp;
   struct dirent *dp;
-  int freg;
+  
 
   fflush(stdout);
 
@@ -213,7 +214,24 @@ int main(int argc, char* argv[]) {
     }
   }
  
-  printf("Opcode: %c, Req: %s, Resp: %s,Notif: %s\n",connect_opcode,req_pipe_path,resp_pipe_path,notif_pipe_path);
+  printf("Opcode: %c, Req: %s, Resp: %s, Notif: %s\n",connect_opcode,req_pipe_path,resp_pipe_path,notif_pipe_path);
+  
+  connect_response[0]=connect_opcode;
+
+
+  if(sizeof(connect_message)!=121){
+    connect_response[1]='1';
+  }else{
+    connect_response[1]='0';
+  }
+
+  connect_response[2]='\0';
+
+
+  if ((fresp = open (resp_pipe_path,O_WRONLY))<0) exit(1);
+
+  write(fresp,connect_response,MAX_CONNECT_RESPONSE_SIZE);
+
 
   if (dirp == NULL){
     perror("Failure at opening directory"); 
