@@ -31,7 +31,7 @@ void job_handler(int fd, int fd2, const char* file_name, int MAX_BACKUPS) {
     char values[MAX_WRITE_SIZE][MAX_STRING_SIZE] = {0};
     size_t num_pairs;
     int num_backups = 0;
-    unsigned int delay;
+    unsigned int delay ;
     char bck_number[4] = "";
 
     for (;;) {
@@ -238,11 +238,23 @@ int main(int argc, char* argv[]) {
     return EXIT_FAILURE;
   }
   
-
+  
   for (;;){
     char file_name [MAX_JOB_FILE_NAME_SIZE] = "";
     char file_out [MAX_JOB_FILE_NAME_SIZE] = "";
-    int fd,fd2;
+    char request[MAX_REQUEST_SIZE];
+    int fd,fd2,freq;
+
+    if ((freq = open (req_pipe_path,O_RDONLY))<0) exit(1);
+    read(freq,request,MAX_REQUEST_SIZE);
+   
+    write(1,request,strlen(request));
+
+    if(request[0] == '3'){
+        printf("heyy\n");
+    }
+
+
 
 
     dp = readdir(dirp);
@@ -307,6 +319,8 @@ int main(int argc, char* argv[]) {
   for (int i = 0; i < (thread_count < MAX_THREADS ? thread_count : MAX_THREADS); i++) {
     pthread_join(threads[i], NULL);
   }
+
+  
   
   close(freg);
   unlink(reg_pipe_path);

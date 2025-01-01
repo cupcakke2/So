@@ -66,12 +66,14 @@ int main(int argc, char* argv[]) {
         return 0;
 
       case CMD_SUBSCRIBE:
+
         num = parse_list(STDIN_FILENO, keys, 1, MAX_STRING_SIZE);
         if (num == 0) {
           fprintf(stderr, "Invalid command. See HELP for usage\n");
           continue;
         }
-         
+
+    
         if (kvs_subscribe(keys[0])) {
             fprintf(stderr, "Command subscribe failed\n");
         }
