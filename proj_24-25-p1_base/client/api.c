@@ -12,6 +12,7 @@
 char global_request_pipe[MAX_PIPE_PATH_LENGTH];
 char global_response_pipe[MAX_PIPE_PATH_LENGTH];
 
+
 void pad_pipe_path(char* dest, const char* src) {
     strncpy(dest, src,  MAX_PIPE_PATH_LENGTH - 1); 
     dest[MAX_PIPE_PATH_LENGTH - 1] = '\0';       
@@ -107,6 +108,26 @@ int kvs_subscribe(const char* key) {
 
 int kvs_unsubscribe(const char* key) {
     // send unsubscribe message to request pipe and wait for response in response pipe
+    // send subscribe message to request pipe and wait for response in response pipe
+  int freq,fresp;
+  char unsubscribe_message[MAX_UNSUBSCRIBE_MESSAGE_SIZE];
+  char unsubscribe_response[MAX_UNSUBSCRIBE_RESPONSE_SIZE];
+  char padded_key[MAX_KEY_SIZE];
+  
+
+  if ((freq = open (global_request_pipe,O_WRONLY))<0) exit(1);
+  pad_key(padded_key,key);
+  sprintf(unsubscribe_message,"4%s",padded_key);
+  write(freq,unsubscribe_message,sizeof(unsubscribe_message));
+
+  if ((fresp = open (global_response_pipe,O_RDONLY))<0) exit(1);
+  read(fresp,unsubscribe_response,MAX_SUBSCRIBE_RESPONSE_SIZE);
+
+  printf("Server returned %c for operation: unsubscribe\n",unsubscribe_response[1]);
+ 
+  if(unsubscribe_response[1]==1) return 1;
+  if(unsubscribe_response[0]==0) return 0;
+
   return 0;
 }
 
