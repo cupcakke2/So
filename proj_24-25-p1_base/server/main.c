@@ -258,6 +258,24 @@ int main(int argc, char* argv[]) {
     if ((freq = open (req_pipe_path,O_RDONLY))<0) exit(1);
     read(freq,request,MAX_REQUEST_SIZE);
    
+   if(request[0] == '2'){
+
+        char disconect_response [MAX_DISCONECT_RESPONSE_SIZE];
+        unlink(req_pipe_path);
+        unlink(reg_pipe_path);
+        unlink(notif_pipe_path);
+        unlink(reg_pipe_path);
+
+        for(int i = 0; i<MAX_NUMBER_SUB; i++){
+            strcpy(global_keys[i],"");
+        }
+
+        sprintf(disconect_response,"%d%d",2,0);
+        if ((fresp = open (resp_pipe_path,O_WRONLY))<0) exit(1);
+        write(fresp,disconect_response,MAX_DISCONECT_RESPONSE_SIZE);
+        close(fresp);
+ 
+    }
     
 
     if(request[0] == '3'){
