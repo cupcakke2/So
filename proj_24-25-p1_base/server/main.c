@@ -23,10 +23,10 @@ int counter_keys = 0;
 
 //Struct that caries the arguments for the function job_thread_handler
 typedef struct {
-  int fd;
-  int fd2;
-  char file_name [MAX_JOB_FILE_NAME_SIZE];
-  int MAX_BACKUPS;
+    int fd;
+    int fd2;
+    char file_name [MAX_JOB_FILE_NAME_SIZE];
+    int MAX_BACKUPS;
 } ThreadArgs;
 
 //Function that processes a .job file (fd) and writes its output in a corresponding .out file (fd2)
@@ -143,7 +143,7 @@ void job_handler(int fd, int fd2, const char* file_name, int MAX_BACKUPS) {
                 break;
         }
     }
-next_file:
+    next_file:
     close(fd); 
     close(fd2);
 }
@@ -158,169 +158,165 @@ void* job_thread_handler(void* arg) {
 
 int main(int argc, char* argv[]) {
 
-  //Handling of inproper inputs by the user
-  if(argc != 5){
-    fprintf(stderr, "Propper usage is: ./kvs dirpath MAX_THREADS MAX_BACKUPS Reg_pipe_name\n");
-    return 1;
-  }
-
-  if (kvs_init()) {
-    fprintf(stderr, "Failed to initialize KVS\n");
-    return 1;
-  }
-
-  int MAX_BACKUPS,MAX_THREADS;
-  char reg_pipe_path[MAX_PIPE_PATH_LENGTH]="/tmp/";
-  char connect_message[MAX_CONNECT_MESSAGE_SIZE];
-  char connect_response[MAX_CONNECT_RESPONSE_SIZE];
-  char connect_opcode;
-  char req_pipe_path[MAX_PIPE_PATH_LENGTH];
-  char resp_pipe_path[MAX_PIPE_PATH_LENGTH];
-  char notif_pipe_path[MAX_PIPE_PATH_LENGTH];
-  int freg, fresp;
-  
-  DIR* dirp;
-  struct dirent *dp;
-  
-
-  fflush(stdout);
-
-  dirp = opendir(argv[1]);
-  MAX_THREADS = atoi(argv[2]);
-  MAX_BACKUPS = atoi(argv[3]);
-  strncat(reg_pipe_path, argv[4], strlen(argv[4]) * sizeof(char));
-
-  pthread_t threads[MAX_THREADS];
-  ThreadArgs thread_args[MAX_THREADS];
-
-  unlink(reg_pipe_path);
-
-  if(mkfifo(reg_pipe_path, 0777) < 0) exit (1);
-
-  if((freg = open(reg_pipe_path, O_RDWR)) < 0) exit(1);
-
-  read(freg,connect_message,MAX_CONNECT_MESSAGE_SIZE);
-
-
-  for(size_t i = 0; i< sizeof(connect_message); i++){
-    if (i == 0) {
-        connect_opcode = connect_message[i];
+    //Handling of inproper inputs by the user
+    if(argc != 5){
+        fprintf(stderr, "Propper usage is: ./kvs dirpath MAX_THREADS MAX_BACKUPS Reg_pipe_name\n");
+        return 1;
     }
-    else if (i>0 && i<=40){
-        req_pipe_path[i-1] = connect_message[i];
+
+    if (kvs_init()) {
+        fprintf(stderr, "Failed to initialize KVS\n");
+        return 1;
     }
-    else if (i>=41 && i<=80){
-        resp_pipe_path[i-41] = connect_message[i];
+
+    int MAX_BACKUPS,MAX_THREADS;
+    char reg_pipe_path[MAX_PIPE_PATH_LENGTH]="/tmp/";
+    char connect_message[MAX_CONNECT_MESSAGE_SIZE];
+    char connect_response[MAX_CONNECT_RESPONSE_SIZE];
+    char connect_opcode;
+    char req_pipe_path[MAX_PIPE_PATH_LENGTH];
+    char resp_pipe_path[MAX_PIPE_PATH_LENGTH];
+    char notif_pipe_path[MAX_PIPE_PATH_LENGTH];
+    int freg, fresp;
+    
+    DIR* dirp;
+    struct dirent *dp;
+    
+
+    fflush(stdout);
+
+    dirp = opendir(argv[1]);
+    MAX_THREADS = atoi(argv[2]);
+    MAX_BACKUPS = atoi(argv[3]);
+    strncat(reg_pipe_path, argv[4], strlen(argv[4]) * sizeof(char));
+
+    pthread_t threads[MAX_THREADS];
+    ThreadArgs thread_args[MAX_THREADS];
+
+    unlink(reg_pipe_path);
+
+    if(mkfifo(reg_pipe_path, 0777) < 0) exit (1);
+
+    if((freg = open(reg_pipe_path, O_RDWR)) < 0) exit(1);
+
+    read(freg,connect_message,MAX_CONNECT_MESSAGE_SIZE);
+
+
+    for(size_t i = 0; i< sizeof(connect_message); i++){
+        if (i == 0) {
+            connect_opcode = connect_message[i];
+        }
+        else if (i>0 && i<=40){
+            req_pipe_path[i-1] = connect_message[i];
+        }
+        else if (i>=41 && i<=80){
+            resp_pipe_path[i-41] = connect_message[i];
+        }
+        else if (i>=81 && i<=120){
+            notif_pipe_path[i-81] = connect_message[i];
+        }
     }
-    else if (i>=81 && i<=120){
-        notif_pipe_path[i-81] = connect_message[i];
-    }
-  }
  
-  printf("Opcode: %c, Req: %s, Resp: %s, Notif: %s\n",connect_opcode,req_pipe_path,resp_pipe_path,notif_pipe_path);
-  
-  connect_response[0]=connect_opcode;
-
-
-  if(sizeof(connect_message)!=121){
-    connect_response[1]='1';
-  }else{
-    connect_response[1]='0';
-  }
-
-  connect_response[2]='\0';
-
-
-  if ((fresp = open (resp_pipe_path,O_WRONLY))<0) exit(1);
-
-
-  write(fresp,connect_response,MAX_CONNECT_RESPONSE_SIZE);
-  close(fresp);
-
-
-  if (dirp == NULL){
-    perror("Failure at opening directory"); 
-    return EXIT_FAILURE;
-  }
-  
-  
-   for (;;){
-    char file_name [MAX_JOB_FILE_NAME_SIZE] = "";
-    char file_out [MAX_JOB_FILE_NAME_SIZE] = "";
-    int fd,fd2;
-
-   
-
-    dp = readdir(dirp);
-
-    if (dp == NULL){
-      break;
-    }
-
-    //Skip . and .. files in the opened directory
-    if (strcmp(dp->d_name,".") == 0 || strcmp(dp->d_name,"..") == 0)
-      continue;
-
-    strcat(file_name,argv[1]);
-    strcat(file_name,"/");
-    strcat(file_name,dp->d_name);
-    strncpy(file_out,file_name,strlen(file_name)-3);
-    strcat(file_out,"out");
-
-    const char *dot = strrchr(file_name,'.');
-
-    //Verification that the current file is a .job and if so, open in it read mode
-    if (strcmp(dot+1,"job")==0){
-      fd = open(file_name, O_RDONLY); 
-    }
+    printf("Opcode: %c, Req: %s, Resp: %s, Notif: %s\n",connect_opcode,req_pipe_path,resp_pipe_path,notif_pipe_path);
     
-    if (fd < 0) {
-        perror("Opening error in .job files.");
+    connect_response[0]=connect_opcode;
+
+
+    if(sizeof(connect_message)!=121){
+        connect_response[1]='1';
+    }else{
+        connect_response[1]='0';
+    }
+
+    connect_response[2]='\0';
+
+
+    if ((fresp = open (resp_pipe_path,O_WRONLY))<0) exit(1);
+
+
+    write(fresp,connect_response,MAX_CONNECT_RESPONSE_SIZE);
+    close(fresp);
+
+
+    if (dirp == NULL){
+        perror("Failure at opening directory"); 
         return EXIT_FAILURE;
     }
-
-    //Open the .out file on which the output for the corresponding .job file will be written (if the file was indeed a .job)
-    if (strcmp(dot+1,"job")==0){
-        fd2 = open(file_out, O_CREAT | O_TRUNC | O_WRONLY, S_IRUSR | S_IWUSR);
-    }
-    
-    if (fd2 < 0) {
-        perror("Opening error in .out file.");
-        return EXIT_FAILURE;
-    }
-
-    ThreadArgs* args = &thread_args[thread_count % MAX_THREADS]; 
-    args->fd = fd;
-    args->fd2 = fd2;
-    strncpy(args->file_name, file_name, MAX_JOB_FILE_NAME_SIZE - 1);
-    args->file_name[MAX_JOB_FILE_NAME_SIZE - 1] = '\0';
-    args->MAX_BACKUPS = MAX_BACKUPS;
-
-    //Creation of threads until the MAX_THREADS limit is reached
-    if (thread_count < MAX_THREADS) {
-        pthread_create(&threads[thread_count], NULL, job_thread_handler, (void*)args);
-        thread_count++;
-    } else {
-        //Await for a thread to be finished before creating a new one, to ensure only MAX_THREADS run at the same time
-        pthread_join(threads[thread_count % MAX_THREADS], NULL);
-        pthread_create(&threads[thread_count % MAX_THREADS], NULL, job_thread_handler, (void*)args);
-        thread_count++;
-    }
-
-  }  
-
-  //Join all created threads
-  for (int i = 0; i < (thread_count < MAX_THREADS ? thread_count : MAX_THREADS); i++) {
-    pthread_join(threads[i], NULL);
-  }
   
-  int freq;
-  char request[MAX_REQUEST_SIZE];
-  char subscribe_key[MAX_KEY_SIZE];
-  char unsubscribe_key[MAX_KEY_SIZE];
-  char subscribe_response[MAX_SUBSCRIBE_RESPONSE_SIZE];
-  char unsubscribe_response[MAX_UNSUBSCRIBE_RESPONSE_SIZE];
-  char opcode;
+    for (;;){
+
+        char file_name [MAX_JOB_FILE_NAME_SIZE] = "";
+        char file_out [MAX_JOB_FILE_NAME_SIZE] = "";
+        int fd,fd2;
+
+        dp = readdir(dirp);
+
+        if (dp == NULL){
+            break;
+        }
+
+        //Skip . and .. files in the opened directory
+        if (strcmp(dp->d_name,".") == 0 || strcmp(dp->d_name,"..") == 0) continue;
+
+        strcat(file_name,argv[1]);
+        strcat(file_name,"/");
+        strcat(file_name,dp->d_name);
+        strncpy(file_out,file_name,strlen(file_name)-3);
+        strcat(file_out,"out");
+
+        const char *dot = strrchr(file_name,'.');
+
+        //Verification that the current file is a .job and if so, open in it read mode
+        if (strcmp(dot+1,"job")==0){
+            fd = open(file_name, O_RDONLY); 
+        }
+        
+        if (fd < 0) {
+            perror("Opening error in .job files.");
+            return EXIT_FAILURE;
+        }
+
+        //Open the .out file on which the output for the corresponding .job file will be written (if the file was indeed a .job)
+        if (strcmp(dot+1,"job")==0){
+            fd2 = open(file_out, O_CREAT | O_TRUNC | O_WRONLY, S_IRUSR | S_IWUSR);
+        }
+        
+        if (fd2 < 0) {
+            perror("Opening error in .out file.");
+            return EXIT_FAILURE;
+        }
+
+        ThreadArgs* args = &thread_args[thread_count % MAX_THREADS]; 
+        args->fd = fd;
+        args->fd2 = fd2;
+        strncpy(args->file_name, file_name, MAX_JOB_FILE_NAME_SIZE - 1);
+        args->file_name[MAX_JOB_FILE_NAME_SIZE - 1] = '\0';
+        args->MAX_BACKUPS = MAX_BACKUPS;
+
+        //Creation of threads until the MAX_THREADS limit is reached
+        if (thread_count < MAX_THREADS) {
+            pthread_create(&threads[thread_count], NULL, job_thread_handler, (void*)args);
+            thread_count++;
+        } else {
+            //Await for a thread to be finished before creating a new one, to ensure only MAX_THREADS run at the same time
+            pthread_join(threads[thread_count % MAX_THREADS], NULL);
+            pthread_create(&threads[thread_count % MAX_THREADS], NULL, job_thread_handler, (void*)args);
+            thread_count++;
+        }
+    }  
+
+    //Join all created threads
+    for (int i = 0; i < (thread_count < MAX_THREADS ? thread_count : MAX_THREADS); i++) {
+        pthread_join(threads[i], NULL);
+    }
+  
+    int freq;
+    char request[MAX_REQUEST_SIZE];
+    char subscribe_key[MAX_KEY_SIZE];
+    char unsubscribe_key[MAX_KEY_SIZE];
+    char subscribe_response[MAX_SUBSCRIBE_RESPONSE_SIZE];
+    char unsubscribe_response[MAX_UNSUBSCRIBE_RESPONSE_SIZE];
+    char opcode;
 
     if ((freq = open (req_pipe_path,O_RDONLY))<0) exit(1);
 
@@ -403,12 +399,9 @@ int main(int argc, char* argv[]) {
            
         }
     }
-
-   
-  
-  //Ver se é mesmo para fechar aqui (não deve ser)
-  close(freg);
-  unlink(reg_pipe_path);
-  kvs_terminate();
-  closedir(dirp);
+    //Ver se é mesmo para fechar aqui (não deve ser)
+    close(freg);
+    unlink(reg_pipe_path);
+    kvs_terminate();
+    closedir(dirp);
 }
