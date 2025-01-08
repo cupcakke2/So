@@ -197,7 +197,7 @@ int main(int argc, char* argv[]) {
 
   if(mkfifo(reg_pipe_path, 0777) < 0) exit (1);
 
-  if((freg = open(reg_pipe_path, O_RDONLY)) < 0) exit(1);
+  if((freg = open(reg_pipe_path, O_RDWR)) < 0) exit(1);
 
   read(freg,connect_message,MAX_CONNECT_MESSAGE_SIZE);
 
@@ -244,95 +244,12 @@ int main(int argc, char* argv[]) {
   }
   
   
-  for (;;){
+   for (;;){
     char file_name [MAX_JOB_FILE_NAME_SIZE] = "";
     char file_out [MAX_JOB_FILE_NAME_SIZE] = "";
-    char request[MAX_REQUEST_SIZE];
-    char subscribe_key[MAX_KEY_SIZE];
-    char unsubscribe_key[MAX_KEY_SIZE];
-    char subscribe_response[MAX_SUBSCRIBE_RESPONSE_SIZE];
-    char unsubscribe_response[MAX_UNSUBSCRIBE_RESPONSE_SIZE];
-    char opcode;
-    int fd,fd2,freq;
+    int fd,fd2;
 
-    if ((freq = open (req_pipe_path,O_RDONLY))<0) exit(1);
-    read(freq,request,MAX_REQUEST_SIZE);
    
-   if(request[0] == '2'){
-
-        char disconect_response [MAX_DISCONECT_RESPONSE_SIZE];
-        unlink(req_pipe_path);
-        unlink(reg_pipe_path);
-        unlink(notif_pipe_path);
-        unlink(reg_pipe_path);
-
-        for(int i = 0; i<MAX_NUMBER_SUB; i++){
-            strcpy(global_keys[i],"");
-        }
-
-        sprintf(disconect_response,"%d%d",2,0);
-        if ((fresp = open (resp_pipe_path,O_WRONLY))<0) exit(1);
-        write(fresp,disconect_response,MAX_DISCONECT_RESPONSE_SIZE);
-        close(fresp);
- 
-    }
-    
-
-    if(request[0] == '3'){
-
-        for(size_t i = 0; i< sizeof(request); i++){
-            if (i == 0) {
-                opcode = request[i];
-            }
-            else if (i>0 && i<=41){
-                subscribe_key[i-1] = request[i];
-            }
-        }
-
-        if(exists_key(subscribe_key)){
-            strcpy(global_keys[counter_keys],subscribe_key);
-            counter_keys ++;
-        }
-        
-        sprintf(subscribe_response,"%c%d",opcode,exists_key(subscribe_key));
-        if ((fresp = open (resp_pipe_path,O_WRONLY))<0) exit(1);
-        write(fresp,subscribe_response,MAX_SUBSCRIBE_RESPONSE_SIZE);
-        close(fresp);
- 
-    }
-
-    if(request[0] == '4'){
-        int exists = 0;
-        
-        for(size_t i = 0; i< sizeof(request); i++){
-            if (i == 0) {
-                opcode = request[i];
-            }
-            else if (i>0 && i<=41){
-                unsubscribe_key[i-1] = request[i];
-            }
-        }
-
-        for(int i=0; i<MAX_NUMBER_SUB; i++){
-            if (strcmp(global_keys[i],unsubscribe_key) == 0){
-                exists = 1;
-                strcpy(global_keys[i],"");
-                sprintf(unsubscribe_response,"%c%d",opcode,0);
-                if ((fresp = open (resp_pipe_path,O_WRONLY))<0) exit(1);
-                write(fresp,unsubscribe_response,MAX_UNSUBSCRIBE_RESPONSE_SIZE);
-                close(fresp);
-            }
-        }
-
-        if(exists==0){
-            sprintf(unsubscribe_response,"%c%d",opcode,1);
-            if ((fresp = open (resp_pipe_path,O_WRONLY))<0) exit(1);
-            write(fresp,unsubscribe_response,MAX_UNSUBSCRIBE_RESPONSE_SIZE);
-            close(fresp);
-        }
-           
-    }
-
 
     dp = readdir(dirp);
 
@@ -396,9 +313,100 @@ int main(int argc, char* argv[]) {
   for (int i = 0; i < (thread_count < MAX_THREADS ? thread_count : MAX_THREADS); i++) {
     pthread_join(threads[i], NULL);
   }
+  
+  int freq;
+  char request[MAX_REQUEST_SIZE];
+  char subscribe_key[MAX_KEY_SIZE];
+  char unsubscribe_key[MAX_KEY_SIZE];
+  char subscribe_response[MAX_SUBSCRIBE_RESPONSE_SIZE];
+  char unsubscribe_response[MAX_UNSUBSCRIBE_RESPONSE_SIZE];
+  char opcode;
 
+    if ((freq = open (req_pipe_path,O_RDONLY))<0) exit(1);
+
+    while(1){
+
+        read(freq,request,MAX_REQUEST_SIZE);
+   
+        if(request[0] == '2'){
+
+            char disconect_response [MAX_DISCONECT_RESPONSE_SIZE];
+            unlink(req_pipe_path);
+            unlink(reg_pipe_path);
+            unlink(notif_pipe_path);
+            unlink(reg_pipe_path);
+
+            for(int i = 0; i<MAX_NUMBER_SUB; i++){
+                strcpy(global_keys[i],"");
+            }
+
+            sprintf(disconect_response,"%d%d",2,0);
+            if ((fresp = open (resp_pipe_path,O_WRONLY))<0) exit(1);
+            write(fresp,disconect_response,MAX_DISCONECT_RESPONSE_SIZE);
+            close(fresp);
+ 
+        }
+    
+
+        if(request[0] == '3'){
+
+            for(size_t i = 0; i< sizeof(request); i++){
+                if (i == 0) {
+                    opcode = request[i];
+                }
+                else if (i>0 && i<=41){
+                    subscribe_key[i-1] = request[i];
+                }
+            }
+
+            if(exists_key(subscribe_key)){
+                strcpy(global_keys[counter_keys],subscribe_key);
+                counter_keys ++;
+            }
+        
+            sprintf(subscribe_response,"%c%d",opcode,exists_key(subscribe_key));
+            if ((fresp = open (resp_pipe_path,O_WRONLY))<0) exit(1);
+            write(fresp,subscribe_response,MAX_SUBSCRIBE_RESPONSE_SIZE);
+            close(fresp);
+ 
+        }
+
+        if(request[0] == '4'){
+            int exists = 0;
+            
+            for(size_t i = 0; i< sizeof(request); i++){
+                if (i == 0) {
+                    opcode = request[i];
+                }
+                else if (i>0 && i<=41){
+                    unsubscribe_key[i-1] = request[i];
+                }
+            }
+
+            for(int i=0; i<MAX_NUMBER_SUB; i++){
+                if (strcmp(global_keys[i],unsubscribe_key) == 0){
+                    exists = 1;
+                    strcpy(global_keys[i],"");
+                    sprintf(unsubscribe_response,"%c%d",opcode,0);
+                    if ((fresp = open (resp_pipe_path,O_WRONLY))<0) exit(1);
+                    write(fresp,unsubscribe_response,MAX_UNSUBSCRIBE_RESPONSE_SIZE);
+                    close(fresp);
+                }
+            }
+
+            if(exists==0){
+                sprintf(unsubscribe_response,"%c%d",opcode,1);
+                if ((fresp = open (resp_pipe_path,O_WRONLY))<0) exit(1);
+                write(fresp,unsubscribe_response,MAX_UNSUBSCRIBE_RESPONSE_SIZE);
+                close(fresp);
+            }
+           
+        }
+    }
+
+   
   
-  
+  //Ver se é mesmo para fechar aqui (não deve ser)
   close(freg);
   unlink(reg_pipe_path);
   kvs_terminate();
