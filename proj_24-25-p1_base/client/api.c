@@ -97,10 +97,12 @@ int kvs_disconnect(void) {
   close(freq);
   close(fresp);
  
-  if(disconnect_response[1]==1) return 1;
-  if(disconnect_response[0]==0) return 0;
-  
-  return 0;
+
+  if(disconnect_response[1]=='0'){
+    return 0;
+  }else{
+    return 1;
+  }
 }
 
 int kvs_subscribe(const char* key) {
@@ -124,10 +126,12 @@ int kvs_subscribe(const char* key) {
   close(freq);
   close(fresp);
  
-  if(subscribe_response[1]==1) return 1;
-  if(subscribe_response[0]==0) return 0;
-
-  return 0;
+  
+  if(subscribe_response[1]=='0'){
+    return 0;
+  }else{
+    return 1;
+  }
 }
 
 int kvs_unsubscribe(const char* key) {
@@ -152,8 +156,11 @@ int kvs_unsubscribe(const char* key) {
   close(freq);
   close(fresp);
  
-  if(unsubscribe_response[1]==1) return 1;
-  if(unsubscribe_response[0]==0) return 0;
+  if(unsubscribe_response[1]=='0'){
+    return 0;
+  }else{
+    return 1;
+  }
 
   return 0;
 }

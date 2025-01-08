@@ -74,9 +74,9 @@ int main(int argc, char* argv[]) {
           continue;
         }
 
-    
-        if (kvs_subscribe(keys[0])) {
-            fprintf(stderr, "Command subscribe failed\n");
+  
+        if (!kvs_subscribe(keys[0])) {
+          fprintf(stderr, "Command subscribe failed\n");
         }
 
         break;
