@@ -20,4 +20,6 @@ void write_uint(int fd, int value);
 /// @return Number of bytes copied
 size_t strn_memcpy(char *dest, const char *src, size_t n);
 
+
+
 #endif // KVS_IO_H

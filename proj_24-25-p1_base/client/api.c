@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include "../common/constants.h"
 #include "../common/protocol.h"
+#include "../common/io.h"
 #include <stdio.h>
 #include <unistd.h>
 #include <string.h>
@@ -41,6 +42,8 @@ int kvs_connect(char const* req_pipe_path, char const* resp_pipe_path, char cons
   char padded_resp[MAX_PIPE_PATH_LENGTH];
   char padded_notif[MAX_PIPE_PATH_LENGTH];
 
+  
+
   unlink(req_pipe_path);
   unlink(resp_pipe_path);
   unlink(notif_pipe_path);
@@ -49,7 +52,7 @@ int kvs_connect(char const* req_pipe_path, char const* resp_pipe_path, char cons
   if(mkfifo(resp_pipe_path, 0777) < 0)  return 1;
   if(mkfifo(notif_pipe_path, 0777) < 0)  return 1;
 
-  if ((freg = open (reg_pipe_path,O_WRONLY))<0) exit(1);
+  if ((freg = open (reg_pipe_path,O_RDWR))<0) exit(1);
 
   pad_pipe_path(padded_req,req_pipe_path);
   pad_pipe_path(padded_resp,resp_pipe_path);
@@ -72,9 +75,10 @@ int kvs_connect(char const* req_pipe_path, char const* resp_pipe_path, char cons
   memcpy(connect_message + offset, padded_notif, sizeof(padded_notif));  
   offset += sizeof(padded_notif) ;
 
-
-  write(freg,connect_message,MAX_CONNECT_MESSAGE_SIZE);
-  close(freg);
+  
+  
+  write_all(freg,connect_message,MAX_CONNECT_MESSAGE_SIZE);
+  printf("heyy\n");
 
   return 0;
 }

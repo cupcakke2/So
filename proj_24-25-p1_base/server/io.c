@@ -2,7 +2,9 @@
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
+#include <errno.h>
 #include "io.h"
+#include "kvs_nova.h"
 
 void write_str(int fd, const char *str) {
   size_t len = strlen(str);

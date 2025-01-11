@@ -8,14 +8,18 @@
 #include <sys/wait.h>
 #include <unistd.h>
 #include <sys/stat.h>
-
 #include "constants.h"
 #include "../common/constants.h"
 #include "io.h"
-#include "../common/io.h"
+#include "../common/io.c"
 #include "operations_nova.h"
 #include "parser.h"
 #include "pthread.h"
+#include <errno.h>
+#include <time.h>
+
+
+
 
 struct SharedData {
   DIR *dir;
@@ -38,8 +42,8 @@ char reg_pipe_path[MAX_PIPE_PATH_LENGTH];
 char req_pipe_path[MAX_PIPE_PATH_LENGTH];
 char resp_pipe_path[MAX_PIPE_PATH_LENGTH];
 char notif_pipe_path[MAX_PIPE_PATH_LENGTH];
-int freg,fresp; 
-int *intr;
+int fresp; 
+int intr = 0;
 int counter_keys = 0;
 
 
@@ -252,9 +256,7 @@ static void *get_file(void *arguments) {
 }
 
 static void dispatch_threads(DIR *dir) {
-  char connect_message[MAX_CONNECT_MESSAGE_SIZE]; 
-  char connect_response[MAX_CONNECT_RESPONSE_SIZE];
-  char connect_opcode;
+  
   pthread_t *threads = malloc(max_threads * sizeof(pthread_t));
 
   if (threads == NULL) {
@@ -274,45 +276,6 @@ static void dispatch_threads(DIR *dir) {
       return;
     }
   }
-
-  // ler do FIFO de registo
-  if(read_all(freg,connect_message,MAX_CONNECT_MESSAGE_SIZE,intr) == -1){
-    fprintf(stderr,"Failed to read from register pipe\n");
-    return;
-  }
-
-  for(size_t i = 0; i< sizeof(connect_message); i++){
-        if (i == 0) {
-            connect_opcode = connect_message[i];
-        }
-        else if (i>0 && i<=40){
-            req_pipe_path[i-1] = connect_message[i];
-        }
-        else if (i>=41 && i<=80){
-            resp_pipe_path[i-41] = connect_message[i];
-        }
-        else if (i>=81 && i<=120){
-            notif_pipe_path[i-81] = connect_message[i];
-        }
-    }
- 
-  printf("Opcode: %c, Req: %s, Resp: %s, Notif: %s\n",connect_opcode,req_pipe_path,resp_pipe_path,notif_pipe_path);
-    
-  connect_response[0]=connect_opcode;
-
-  if(sizeof(connect_message)!=121){
-    connect_response[1]='1';
-  }else{
-    connect_response[1]='0';
-  }
-
-  connect_response[2]='\0';
-
-
-  if ((fresp = open (resp_pipe_path,O_WRONLY))<0) exit(1);
-
-  write_all(fresp,connect_response,MAX_CONNECT_RESPONSE_SIZE);
-  close(fresp);
 
   for (unsigned int i = 0; i < max_threads; i++) {
     if (pthread_join(threads[i], NULL) != 0) {
@@ -344,6 +307,10 @@ int main(int argc, char **argv) {
   jobs_directory = argv[1];
 
   char *endptr;
+  char connect_message[MAX_CONNECT_MESSAGE_SIZE]; 
+  char connect_response[MAX_CONNECT_RESPONSE_SIZE];
+  char connect_opcode;
+  int freg;
   max_backups = strtoul(argv[3], &endptr, 10);
   
 
@@ -382,6 +349,52 @@ int main(int argc, char **argv) {
 
   if((freg = open(reg_pipe_path, O_RDWR)) < 0) exit(1);
 
+  printf("asjdl\n");
+
+  // ler do FIFO de registo
+  if(read_all(freg,connect_message,MAX_CONNECT_MESSAGE_SIZE,&intr) == -1){
+    fprintf(stderr,"Failed to read from register pipe\n");
+    return 1;
+  }
+
+  //close(freg);
+
+
+  printf("heree\n");
+
+  for(size_t i = 0; i< sizeof(connect_message); i++){
+        if (i == 0) {
+            connect_opcode = connect_message[i];
+        }
+        else if (i>0 && i<=40){
+            req_pipe_path[i-1] = connect_message[i];
+        }
+        else if (i>=41 && i<=80){
+            resp_pipe_path[i-41] = connect_message[i];
+        }
+        else if (i>=81 && i<=120){
+            notif_pipe_path[i-81] = connect_message[i];
+        }
+    }
+ 
+  printf("Opcode: %c, Req: %s, Resp: %s, Notif: %s\n",connect_opcode,req_pipe_path,resp_pipe_path,notif_pipe_path);
+    
+  connect_response[0]=connect_opcode;
+
+  if(sizeof(connect_message)!=121){
+    connect_response[1]='1';
+  }else{
+    connect_response[1]='0';
+  }
+
+  connect_response[2]='\0';
+
+
+  if ((fresp = open (resp_pipe_path,O_WRONLY))<0) exit(1);
+
+  write_all(fresp,connect_response,MAX_CONNECT_RESPONSE_SIZE);
+  close(fresp);
+
   if (kvs_init()) {
     write_str(STDERR_FILENO, "Failed to initialize KVS\n");
     return 1;
@@ -407,12 +420,12 @@ int main(int argc, char **argv) {
   char subscribe_response[MAX_SUBSCRIBE_RESPONSE_SIZE];
   char unsubscribe_response[MAX_UNSUBSCRIBE_RESPONSE_SIZE];
   char opcode;
-
+  
   if ((freq = open (req_pipe_path,O_RDONLY))<0) exit(1);
 
   while(1){
 
-    read_all(freq,request,MAX_REQUEST_SIZE,intr);
+    read_all(freq,request,MAX_REQUEST_SIZE,&intr);
 
     if(request[0] == '2'){
 

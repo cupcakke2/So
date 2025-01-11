@@ -29,6 +29,8 @@ int main(int argc, char* argv[]) {
   size_t num;
   int freq,fresp,fnotif;
 
+ 
+
   fflush(stdout);
   strncat(req_pipe_path, argv[1], strlen(argv[1]) * sizeof(char));
   strncat(resp_pipe_path, argv[1], strlen(argv[1]) * sizeof(char));
