@@ -222,6 +222,8 @@ static void *get_file(void *arguments) {
   DIR *dir = thread_data->dir;
   char *dir_name = thread_data->dir_name;
 
+  delay(100);
+
   if (pthread_mutex_lock(&thread_data->directory_mutex) != 0) {
     fprintf(stderr, "Thread failed to lock directory_mutex\n");
     return NULL;
@@ -358,7 +360,6 @@ static void dispatch_threads(DIR *dir) {
     }
   }
 
-  
   if (pthread_mutex_destroy(&thread_data.directory_mutex) != 0) {
     fprintf(stderr, "Failed to destroy directory_mutex\n");
   }

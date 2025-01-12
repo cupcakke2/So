@@ -192,7 +192,7 @@ int kvs_backup(size_t num_backup, char *job_filename, char *directory) {
         keyNode = keyNode->next; // Move to the next node of the list
       }
     }
-    exit(1);
+    _exit(1);
   } else if (pid < 0) {
     return -1;
   }
