@@ -286,11 +286,15 @@ static void dispatch_threads(DIR *dir) {
     }
   }
 
+  
   if (pthread_mutex_destroy(&thread_data.directory_mutex) != 0) {
     fprintf(stderr, "Failed to destroy directory_mutex\n");
   }
 
+
   free(threads);
+  
+  
 }
 
 int main(int argc, char **argv) {
