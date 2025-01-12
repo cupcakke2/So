@@ -10,19 +10,12 @@
 #include "constants.h"
 
 int read_all(int fd, void *buffer, size_t size, int *intr) {
-  printf("reading\n");
   if (intr != NULL && *intr) {
-    printf("mau\n");
     return -1;
   }
-  printf("aqui\n");
   size_t bytes_read = 0;
-  printf("Size: %ld\n", size);
   while (bytes_read < size) {
-    printf("bytes:%ld\n",bytes_read);
-    printf("fd:%d\n",fd);
     ssize_t result = read(fd, buffer + bytes_read, size - bytes_read);
-    printf("result:%ld\n",result);
     if (result == -1) {
       if (errno == EINTR) {
         if (intr != NULL) {
@@ -39,7 +32,6 @@ int read_all(int fd, void *buffer, size_t size, int *intr) {
       return 0;
     }
     bytes_read += (size_t)result;
-    printf("final do while\n");
   }
   return 1;
 }
@@ -61,11 +53,8 @@ int read_string(int fd, char *str) {
 }
 
 int write_all(int fd, const void *buffer, size_t size) {
-  printf("dentro do write\n");
   size_t bytes_written = 0;
-  printf("Size: %ld\n", size);
   while (bytes_written < size) {
-    printf("dentro do write\n");
     ssize_t result = write(fd, buffer + bytes_written, size - bytes_written);
     if (result == -1) {
       if (errno == EINTR) {
@@ -78,7 +67,6 @@ int write_all(int fd, const void *buffer, size_t size) {
     }
     bytes_written += (size_t)result;
   }
-  printf("fim do write\n");
   return 1;
 }
 

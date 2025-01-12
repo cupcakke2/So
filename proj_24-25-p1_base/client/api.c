@@ -48,11 +48,13 @@ int kvs_connect(char const* req_pipe_path, char const* resp_pipe_path, char cons
   unlink(resp_pipe_path);
   unlink(notif_pipe_path);
   
+ 
   if(mkfifo(req_pipe_path, 0777) < 0)  return 1;
   if(mkfifo(resp_pipe_path, 0777) < 0)  return 1;
   if(mkfifo(notif_pipe_path, 0777) < 0)  return 1;
 
   if ((freg = open (reg_pipe_path,O_RDWR))<0) exit(1);
+  printf("hereeeeeee\n");
 
   pad_pipe_path(padded_req,req_pipe_path);
   pad_pipe_path(padded_resp,resp_pipe_path);

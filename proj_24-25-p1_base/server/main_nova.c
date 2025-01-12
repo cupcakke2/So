@@ -38,7 +38,7 @@ size_t max_backups;        // Maximum allowed simultaneous backups
 size_t max_threads;        // Maximum allowed simultaneous threads
 char *jobs_directory = NULL;
 char global_keys[MAX_KEY_SIZE][MAX_NUMBER_SUB];
-char reg_pipe_path[MAX_PIPE_PATH_LENGTH];
+char reg_pipe_path[MAX_PIPE_PATH_LENGTH]="/tmp/";
 char req_pipe_path[MAX_PIPE_PATH_LENGTH];
 char resp_pipe_path[MAX_PIPE_PATH_LENGTH];
 char notif_pipe_path[MAX_PIPE_PATH_LENGTH];
@@ -341,12 +341,14 @@ int main(int argc, char **argv) {
     return 0;
   }
 
-  strcpy(reg_pipe_path,argv[4]);
+  
+  strncat(reg_pipe_path, argv[4], strlen(argv[1]) * sizeof(char));
 
   unlink(reg_pipe_path);
 
   if(mkfifo(reg_pipe_path, 0777) < 0) exit (1);
 
+  printf("%s\n",reg_pipe_path);
   if((freg = open(reg_pipe_path, O_RDWR)) < 0) exit(1);
 
   printf("asjdl\n");
