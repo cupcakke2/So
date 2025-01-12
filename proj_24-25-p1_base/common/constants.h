@@ -13,6 +13,6 @@
 #define MAX_REQUEST_SIZE 42 //tamanho max para qualquer request
 #define MAX_KEY_SIZE 41 //tamanho max de um key
 #define MAX_VALUE_SIZE 41 //tamanho max de um value
-#define MAX_DISCONECT_MESSAGE_SIZE ((size_t) 2) //tamanho max da messagem de desconexao (op_code) + '\0'
-#define MAX_DISCONECT_RESPONSE_SIZE ((size_t) 3) //tamanho max da messagem de desconexao (op_code + char result + '\0')
+#define MAX_DISCONNECT_MESSAGE_SIZE ((size_t) 2) //tamanho max da messagem de desconexao (op_code) + '\0'
+#define MAX_DISCONNECT_RESPONSE_SIZE ((size_t) 3) //tamanho max da messagem de desconexao (op_code + char result + '\0')
 #define MAX_NOTIFICATION_SIZE ((size_t) 84) //tamanho max da notificação (2*MAX_KEY_SIZE + ',' + '(' + ')' )

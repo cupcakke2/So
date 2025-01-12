@@ -60,6 +60,7 @@ int write_pair(HashTable *ht, const char *key, const char *value) {
   KeyNode *keyNode = ht->table[index];
   KeyNode *previousNode;
 
+  //Loop to check if the the key that is being written has an active subscription
   for(int i =0; i<MAX_NUMBER_SUB; i++){
     if(strcmp(global_keys[i],key)==0){
 
@@ -123,6 +124,7 @@ int delete_pair(HashTable *ht, const char *key) {
   KeyNode *keyNode = ht->table[index];
   KeyNode *prevNode = NULL;
 
+  //Loop to see if the key being deleted has an active subscription
   for(int i =0; i<MAX_NUMBER_SUB; i++){
     if(strcmp(global_keys[i],key)==0){
 

@@ -28,22 +28,20 @@ struct SharedData {
 pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t n_current_backups_lock = PTHREAD_MUTEX_INITIALIZER;
 
-//Depois ver se é mesmo necessário todas serem globais, vê tambem se os buffers de mensagens estão a ser bem overwritten
-//Ver se preciso de estar a fazer mais close() de fd
-
 size_t active_backups = 0; // Number of active backups
 size_t max_backups;        // Maximum allowed simultaneous backups
 size_t max_threads;        // Maximum allowed simultaneous threads
 char *jobs_directory = NULL;
-char global_keys[MAX_KEY_SIZE][MAX_NUMBER_SUB];
+char global_keys[MAX_KEY_SIZE][MAX_NUMBER_SUB]; //In our one client solution, subscriptions of said client are kept in this array
 char reg_pipe_path[MAX_PIPE_PATH_LENGTH]="/tmp/";
 char req_pipe_path[MAX_PIPE_PATH_LENGTH];
 char resp_pipe_path[MAX_PIPE_PATH_LENGTH];
 char notif_pipe_path[MAX_PIPE_PATH_LENGTH];
 int fresp; 
-int intr = 0;
+int intr = 0; //Variable set to one if read_all was interrupted
 int counter_keys = 0;
 
+//When the process detetects the custom SIGUSR1, it will erase the subscriptions of the client and unlink its notif and resp pipes.
 void handle_sigusr1(int sig) {
 
   sig++;//Strictly here to avoid unused parameter warning during compilation
@@ -56,6 +54,7 @@ void handle_sigusr1(int sig) {
   unlink(resp_pipe_path);
 }
 
+//When the use presses ctr+C in the terminal we still want to close all pipes before exiting the terminal as usual
 void handle_sigint(int sig) {
 
   sig++; //Strictly here to avoid unused parameter warning during compilation
@@ -64,10 +63,6 @@ void handle_sigint(int sig) {
   unlink(reg_pipe_path);
   unlink(resp_pipe_path);
   unlink(notif_pipe_path);
-
-  for(int i = 0; i<MAX_NUMBER_SUB; i++){
-    memset(global_keys[i], 0, MAX_STRING_SIZE);
-  }
 
   signal(SIGINT, SIG_DFL);  // Set the handler to default 
   raise(SIGINT);
@@ -201,7 +196,7 @@ static int run_job(int in_fd, int out_fd, char *filename) {
                 "  DELETE [key,key2,...]\n"
                 "  SHOW\n"
                 "  WAIT <delay_ms>\n"
-                "  BACKUP\n" // Not implemented
+                "  BACKUP\n"
                 "  HELP\n");
 
       break;
@@ -210,7 +205,7 @@ static int run_job(int in_fd, int out_fd, char *filename) {
       break;
 
     case EOC:
-      printf("EOF\n");
+      printf("EOF\n"); //Inform that the .jobs was processed until the end
       return 0;
     }
   }
@@ -311,6 +306,7 @@ static void dispatch_threads(DIR *dir) {
     }
   }
 
+  //Opening the register pipe in RDWR mode so that it does not close when there are no clients writing in it
   if((freg = open(reg_pipe_path, O_RDWR)) < 0) exit(1);
 
   if(read_all(freg,connect_message,MAX_CONNECT_MESSAGE_SIZE,&intr) == -1){
@@ -381,18 +377,18 @@ int main(int argc, char **argv) {
 
   /*
   
-  Teste do pipe de notificações:
-  Aqui podem-se fazer "pré-subscrições" que depois avisam o cliente se houver escritas ou deletes dessas chaves.
-  Neste exemplo abaixo fazemos a pré-subscrição de (a,prev) e depois quando o nosso ficheiro one.job escreve e 
-  apaga a chave "a" o cliente recebe:
+  Notification pipe test:
+  In the example below we "pre-subscribe" (a,prev) and then when the .job file overwrites and then deletes the "a"
+  key we receive the following message from the notification pipe:
 
-  (a,anna)
-  (a,DELETED)
 
-  como seria de esperar, o que comprova o funcionamento do pipe de notificações.
-
+  //Pre-subscription:
   strncpy(global_keys[0], "a", MAX_NUMBER_SUB);
   strncpy(global_keys[1], "prev", MAX_NUMBER_SUB);
+
+  //Notif-pipe result:
+  (a,anna)
+  (a,DELETED)
   
   */
  
@@ -458,17 +454,21 @@ int main(int argc, char **argv) {
     return 0;
   }
 
+  //Handling SIGUSR1
   if (signal(SIGUSR1, handle_sigusr1) == SIG_ERR) {
     perror("Unable to catch SIGUSR1");
     exit(1);
   }
 
+  //Handling SIGPIPES that happen when we detect SIGUSR1 and we close the notif and resp pipes from the client
+  //we want to ignore this SIGPIPE so that the server doesn't terminate and awaits the connection of another client
   if (signal(SIGPIPE, SIG_IGN) == SIG_ERR) {
     perror("Unable to ignore SIG_PIPE");
     exit(1);
   }
 
-   if (signal(SIGINT,handle_sigint) == SIG_ERR) {
+  //Handling SIGINT
+  if (signal(SIGINT,handle_sigint) == SIG_ERR) {
     perror("Unable to ignore SIG_PIPE");
     exit(1);
   }
@@ -486,11 +486,12 @@ int main(int argc, char **argv) {
 
   while(1){
 
-    read(freq,request,MAX_REQUEST_SIZE); //Aqui é melhor o read do que o read_all porque o read_all bloqueia
+    read(freq,request,MAX_REQUEST_SIZE); //We use read instead of read_all because it would block for disconnect request since they have only 2 + '\0'
   
+    //Disconnect case
     if(request[0] == '2'){
 
-      char disconect_response [MAX_DISCONECT_RESPONSE_SIZE];
+      char disconnect_response[MAX_DISCONNECT_RESPONSE_SIZE];
 
       unlink(req_pipe_path);
       unlink(notif_pipe_path);
@@ -499,14 +500,14 @@ int main(int argc, char **argv) {
         strcpy(global_keys[i],"");
       }
 
-      sprintf(disconect_response,"%d%d",2,0);
+      sprintf(disconnect_response,"%d%d",2,0);
       if ((fresp = open (resp_pipe_path,O_WRONLY))<0) exit(1);
-      write_all(fresp,disconect_response,MAX_DISCONECT_RESPONSE_SIZE);
+      write_all(fresp,disconnect_response,MAX_DISCONNECT_RESPONSE_SIZE);
       close(fresp);
       unlink(resp_pipe_path);
     }
 
-
+    //Subscribe case
     if(request[0] == '3'){
 
       int already_subscribed = 0;
@@ -520,6 +521,7 @@ int main(int argc, char **argv) {
         }
       }
 
+      //Even if the key exists, we must fail the subscription to avoid duplicates
       if(exists_key(subscribe_key)){
         for (int i =0; i <MAX_NUMBER_SUB; i++){
           if(strcmp(subscribe_key,global_keys[i])==0){
@@ -546,6 +548,7 @@ int main(int argc, char **argv) {
       
     }
 
+    //Unsubcribe case
     if(request[0] == '4'){
       int exists = 0;
       
@@ -577,6 +580,7 @@ int main(int argc, char **argv) {
       }
     }
   }
+
 
   while (active_backups > 0) {
     wait(NULL);

@@ -88,6 +88,7 @@ int kvs_read(size_t num_pairs, char keys[][MAX_STRING_SIZE], int fd) {
   return 0;
 }
 
+//We use read_pair to see if the key exists
 int exists_key(char key[MAX_KEY_SIZE]) {
 
   if (kvs_table == NULL) {
