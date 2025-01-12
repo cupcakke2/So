@@ -473,7 +473,7 @@ int main(int argc, char **argv) {
     exit(1);
   }
 
-
+  next_client:
   int freq;
   char request[MAX_REQUEST_SIZE];
   char subscribe_key[MAX_KEY_SIZE];
@@ -486,8 +486,68 @@ int main(int argc, char **argv) {
 
   while(1){
 
-    read(freq,request,MAX_REQUEST_SIZE); //We use read instead of read_all because it would block for disconnect request since they have only 2 + '\0'
-  
+    //We use read instead of read_all because it would block for disconnect request since they have only 2 + '\0'
+    ssize_t bytes_read = read(freq,request,MAX_REQUEST_SIZE); 
+
+    // Client closed the connection, so we await another client
+    if (bytes_read == 0) {
+      
+      int freg;
+      char connect_message[MAX_CONNECT_MESSAGE_SIZE]; 
+      char connect_response[MAX_CONNECT_RESPONSE_SIZE];
+      char connect_opcode;
+      printf("Client disconnected, waiting for new client...\n");
+
+      //Opening the register pipe in RDWR mode so that it does not close when there are no clients writing in it
+      if((freg = open(reg_pipe_path, O_RDWR)) < 0) exit(1);
+
+      if(read_all(freg,connect_message,MAX_CONNECT_MESSAGE_SIZE,&intr) == -1){
+        fprintf(stderr,"Failed to read from register pipe\n");
+        return 0;
+      }
+
+      close(freg);
+
+      for(size_t i = 0; i< sizeof(connect_message); i++){
+            if (i == 0) {
+                connect_opcode = connect_message[i];
+            }
+            else if (i>0 && i<=40){
+                req_pipe_path[i-1] = connect_message[i];
+            }
+            else if (i>=41 && i<=80){
+                resp_pipe_path[i-41] = connect_message[i];
+            }
+            else if (i>=81 && i<=120){
+                notif_pipe_path[i-81] = connect_message[i];
+            }
+        }
+   
+      connect_response[0]=connect_opcode;
+
+      if(sizeof(connect_message)!=121){
+        connect_response[1]='1';
+      }else{
+        connect_response[1]='0';
+      }
+
+       connect_response[2]='\0';
+
+
+      if ((fresp = open (resp_pipe_path,O_WRONLY))<0) exit(1);
+
+      write_all(fresp,connect_response,MAX_CONNECT_RESPONSE_SIZE);
+      close(fresp);
+
+      goto next_client; // Goes to the loop for processing requests for this new client
+    }
+
+    // Error during read operation
+    if (bytes_read < 0) {
+      perror("Error reading from pipe");
+      break; 
+    }
+
     //Disconnect case
     if(request[0] == '2'){
 
@@ -505,6 +565,7 @@ int main(int argc, char **argv) {
       write_all(fresp,disconnect_response,MAX_DISCONNECT_RESPONSE_SIZE);
       close(fresp);
       unlink(resp_pipe_path);
+
     }
 
     //Subscribe case
