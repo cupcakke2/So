@@ -4,6 +4,7 @@
 
 #include <pthread.h>
 #include <stddef.h>
+#include "../common/constants.h"
 
 typedef struct KeyNode {
   char *key;
@@ -20,7 +21,15 @@ typedef struct HashTable {
 /// @return Newly created hash table, NULL on failure
 struct HashTable *create_hash_table();
 
+extern char global_keys[MAX_KEY_SIZE][MAX_NUMBER_SUB];
+extern char notif_pipe_path[MAX_PIPE_PATH_LENGTH];
+
 int hash(const char *key);
+
+//Pads pad_key with '\0' at the end to have 41 characters (at most 40 for the name of the key + '\0')
+///@param dest char* where the padded key will be written
+///@param src unpadded key
+void pad_key_or_value(char* dest, const char* src);
 
 // Writes a key value pair in the hash table.
 // @param ht The hash table.

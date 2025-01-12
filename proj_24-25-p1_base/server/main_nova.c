@@ -445,6 +445,8 @@ int main(int argc, char **argv) {
 
     if(request[0] == '3'){
 
+      int already_subscribed = 0;
+
       for(size_t i = 0; i< sizeof(request); i++){
         if (i == 0) {
             opcode = request[i];
@@ -455,14 +457,28 @@ int main(int argc, char **argv) {
       }
 
       if(exists_key(subscribe_key)){
-        strcpy(global_keys[counter_keys],subscribe_key);
-        counter_keys ++;
+        for (int i =0; i <MAX_NUMBER_SUB; i++){
+          if(strcmp(subscribe_key,global_keys[i])==0){
+            already_subscribed = 1;
+          }
+        }
+        if(already_subscribed == 0){
+          strcpy(global_keys[counter_keys],subscribe_key);
+          counter_keys ++;
+        }  
       }
-  
-      sprintf(subscribe_response,"%c%d",opcode,exists_key(subscribe_key));
-      if ((fresp = open (resp_pipe_path,O_WRONLY))<0) exit(1);
-      write_all(fresp,subscribe_response,MAX_SUBSCRIBE_RESPONSE_SIZE);
-      close(fresp);
+      if(already_subscribed == 1){
+        sprintf(subscribe_response,"%c%d",opcode,0);
+        if ((fresp = open (resp_pipe_path,O_WRONLY))<0) exit(1);
+        write_all(fresp,subscribe_response,MAX_SUBSCRIBE_RESPONSE_SIZE);
+        close(fresp);
+      }else{
+        sprintf(subscribe_response,"%c%d",opcode,exists_key(subscribe_key));
+        if ((fresp = open (resp_pipe_path,O_WRONLY))<0) exit(1);
+        write_all(fresp,subscribe_response,MAX_SUBSCRIBE_RESPONSE_SIZE);
+        close(fresp);
+      }
+      
     }
 
     if(request[0] == '4'){

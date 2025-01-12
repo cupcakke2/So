@@ -5,6 +5,16 @@
 #include <signal.h>
 #include "../common/constants.h"
 
+///Pads pipe_path with '\0' at the end to have 40 characters in total
+///@param dest char* where the padded_pipe_path will be written
+///@param src unpadded pipe path
+void pad_pipe_path(char* dest, const char* src);
+
+//Pads pad_key with '\0' at the end to have 41 characters (at most 40 for the name of the key + '\0')
+///@param dest char* where the padded key will be written
+///@param src unpadded key
+void pad_key(char* dest, const char* src);
+
 
 /// Connects to a kvs server.
 /// @param req_pipe_path Path to the name pipe to be created for requests.

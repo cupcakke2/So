@@ -2,8 +2,17 @@
 
 #include <ctype.h>
 #include <stdlib.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <stdio.h>
 
 #include "string.h"
+#include "../common/constants.h"
+#include "../common/io.h"
+
+
+extern char global_keys[MAX_KEY_SIZE][MAX_NUMBER_SUB];
+extern char notif_pipe_path[MAX_PIPE_PATH_LENGTH];
 
 // Hash function based on key initial.
 // @param key Lowercase alphabetical string.
@@ -31,12 +40,37 @@ struct HashTable *create_hash_table() {
   return ht;
 }
 
+void pad_key_or_value(char* dest, const char* src) {
+    strncpy(dest, src,  MAX_KEY_SIZE - 1); 
+    dest[MAX_KEY_SIZE - 1] = '\0';       
+    for (size_t i = strlen(src); i < MAX_KEY_SIZE; i++) {
+        dest[i] = '\0';              
+    }
+}
+
 int write_pair(HashTable *ht, const char *key, const char *value) {
   int index = hash(key);
+  int fnotif;
+  char notification[MAX_NOTIFICATION_SIZE];
+  char padded_key[MAX_KEY_SIZE];
+  char padded_value[MAX_VALUE_SIZE];
 
   // Search for the key node
   KeyNode *keyNode = ht->table[index];
   KeyNode *previousNode;
+
+  for(int i =0; i<MAX_NUMBER_SUB; i++){
+    if(strcmp(global_keys[i],key)==0){
+
+      pad_key_or_value(padded_key,key);
+      pad_key_or_value(padded_value,value);
+      sprintf(notification,"(%s,%s)",padded_key,padded_value);
+
+      if ((fnotif = open (notif_pipe_path,O_WRONLY))<0) exit(1);
+      write_all(fnotif,notification,MAX_NOTIFICATION_SIZE);
+      close(fnotif); 
+    }
+  }
 
   while (keyNode != NULL) {
     if (strcmp(keyNode->key, key) == 0) {
