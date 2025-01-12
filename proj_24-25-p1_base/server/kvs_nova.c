@@ -40,6 +40,7 @@ struct HashTable *create_hash_table() {
   return ht;
 }
 
+//Pads key or value with '\0' until it has 40 characters + '\0'
 void pad_key_or_value(char* dest, const char* src) {
     strncpy(dest, src,  MAX_KEY_SIZE - 1); 
     dest[MAX_KEY_SIZE - 1] = '\0';       
