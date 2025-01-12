@@ -11,6 +11,30 @@
 #include "../common/io.h"
 #include "../common/io.c"
 
+int intr_m = 0;
+void *notification_handler(void *arg) {
+  
+  char notification[MAX_NOTIFICATION_SIZE];
+
+  char *notif_pipe_path = (char *)arg;
+  int fnotif;
+
+  if ((fnotif = open (notif_pipe_path,O_RDONLY))<0) exit(1);
+
+  while (1) {
+    ssize_t bytes_read = read_all(fnotif,notification,MAX_NOTIFICATION_SIZE,&intr_m);
+    if (bytes_read > 0) {
+      printf("%s\n", notification);
+    } else if (bytes_read == 0) {
+      continue;
+    } else {
+      perror("Error reading from notification pipe");
+      break;
+    }
+  }
+  close(fnotif);
+  return NULL;
+}
 
 int main(int argc, char* argv[]) {
 
@@ -52,6 +76,12 @@ int main(int argc, char* argv[]) {
   read(fresp,connect_response,MAX_CONNECT_RESPONSE_SIZE);
 
   printf("Server returned %c for operation: connect\n",connect_response[1]);
+
+  pthread_t notif_thread; //main thread to handle the notification pipe
+  if (pthread_create(&notif_thread, NULL, notification_handler, (void *)notif_pipe_path)) {
+    fprintf(stderr, "Failed to create notification handler thread\n");
+    return 1;
+  }
   
   while (1) {
     switch (get_next(STDIN_FILENO)) {
@@ -119,13 +149,4 @@ int main(int argc, char* argv[]) {
     }
   }
   
-
-  unlink(req_pipe_path);
-  unlink(resp_pipe_path);
-  unlink(reg_pipe_path);
-  unlink(notif_pipe_path);
-  close(fresp);
-  close(freq);
-  close(fnotif);
-
 }

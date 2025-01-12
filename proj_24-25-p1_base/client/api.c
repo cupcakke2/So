@@ -13,6 +13,7 @@
 char global_request_pipe[MAX_PIPE_PATH_LENGTH];
 char global_response_pipe[MAX_PIPE_PATH_LENGTH];
 char global_notif_pipe[MAX_PIPE_PATH_LENGTH];
+
 int intr = 0;
 
 void pad_pipe_path(char* dest, const char* src) {
