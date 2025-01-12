@@ -52,15 +52,13 @@ int main(int argc, char* argv[]) {
   read(fresp,connect_response,MAX_CONNECT_RESPONSE_SIZE);
 
   printf("Server returned %c for operation: connect\n",connect_response[1]);
-
- 
-
   
   while (1) {
     switch (get_next(STDIN_FILENO)) {
       case CMD_DISCONNECT:
       
-        if (kvs_disconnect() != 0) {
+        printf("No disconnect\n");
+        if (kvs_disconnect()) {
           fprintf(stderr, "Failed to disconnect to the server\n");
           return 1;
         }
@@ -91,7 +89,7 @@ int main(int argc, char* argv[]) {
         }
          
         if (kvs_unsubscribe(keys[0])) {
-            fprintf(stderr, "Command subscribe failed\n");
+            fprintf(stderr, "Command unsubscribe failed\n");
         }
 
         break;

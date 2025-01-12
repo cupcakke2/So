@@ -54,7 +54,6 @@ int kvs_connect(char const* req_pipe_path, char const* resp_pipe_path, char cons
   if(mkfifo(notif_pipe_path, 0777) < 0)  return 1;
 
   if ((freg = open (reg_pipe_path,O_RDWR))<0) exit(1);
-  printf("hereeeeeee\n");
 
   pad_pipe_path(padded_req,req_pipe_path);
   pad_pipe_path(padded_resp,resp_pipe_path);
@@ -80,7 +79,6 @@ int kvs_connect(char const* req_pipe_path, char const* resp_pipe_path, char cons
   
   
   write_all(freg,connect_message,MAX_CONNECT_MESSAGE_SIZE);
-  printf("heyy\n");
 
   return 0;
 }
@@ -93,7 +91,7 @@ int kvs_disconnect(void) {
 
   disconnect_message[0]='2';
   if ((freq = open (global_request_pipe,O_WRONLY))<0) exit(1);
-  write(freq,disconnect_message,sizeof(disconnect_message));
+  write_all(freq,disconnect_message,MAX_DISCONECT_MESSAGE_SIZE);
 
   if ((fresp = open (global_response_pipe,O_RDONLY))<0) exit(1);
   read(fresp,disconnect_response,MAX_DISCONECT_RESPONSE_SIZE);

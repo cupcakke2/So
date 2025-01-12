@@ -342,27 +342,20 @@ int main(int argc, char **argv) {
   }
 
   
-  strncat(reg_pipe_path, argv[4], strlen(argv[1]) * sizeof(char));
+  strncat(reg_pipe_path, argv[4], strlen(argv[4]) * sizeof(char));
 
   unlink(reg_pipe_path);
 
   if(mkfifo(reg_pipe_path, 0777) < 0) exit (1);
 
-  printf("%s\n",reg_pipe_path);
   if((freg = open(reg_pipe_path, O_RDWR)) < 0) exit(1);
 
-  printf("asjdl\n");
 
   // ler do FIFO de registo
   if(read_all(freg,connect_message,MAX_CONNECT_MESSAGE_SIZE,&intr) == -1){
     fprintf(stderr,"Failed to read from register pipe\n");
     return 1;
   }
-
-  //close(freg);
-
-
-  printf("heree\n");
 
   for(size_t i = 0; i< sizeof(connect_message); i++){
         if (i == 0) {
@@ -378,9 +371,7 @@ int main(int argc, char **argv) {
             notif_pipe_path[i-81] = connect_message[i];
         }
     }
- 
-  printf("Opcode: %c, Req: %s, Resp: %s, Notif: %s\n",connect_opcode,req_pipe_path,resp_pipe_path,notif_pipe_path);
-    
+   
   connect_response[0]=connect_opcode;
 
   if(sizeof(connect_message)!=121){
