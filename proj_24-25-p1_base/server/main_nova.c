@@ -418,17 +418,14 @@ int main(int argc, char **argv) {
 
   while(1){
 
-    read_all(freq,request,MAX_REQUEST_SIZE,&intr);
-    printf("%s\n",request);
-
+    read(freq,request,MAX_REQUEST_SIZE); //Aqui é melhor o read do que o read_all porque o read_all bloqueia
+  
     if(request[0] == '2'){
 
       char disconect_response [MAX_DISCONECT_RESPONSE_SIZE];
-      printf("beep\n");
+
       unlink(req_pipe_path);
-      unlink(reg_pipe_path);
       unlink(notif_pipe_path);
-      unlink(reg_pipe_path);
 
       for(int i = 0; i<MAX_NUMBER_SUB; i++){
         strcpy(global_keys[i],"");
@@ -438,6 +435,7 @@ int main(int argc, char **argv) {
       if ((fresp = open (resp_pipe_path,O_WRONLY))<0) exit(1);
       write_all(fresp,disconect_response,MAX_DISCONECT_RESPONSE_SIZE);
       close(fresp);
+      unlink(resp_pipe_path);
     }
 
 
