@@ -15,8 +15,6 @@ char global_response_pipe[MAX_PIPE_PATH_LENGTH];
 char global_notif_pipe[MAX_PIPE_PATH_LENGTH];
 int intr = 0;
 
-
-
 void pad_pipe_path(char* dest, const char* src) {
     strncpy(dest, src,  MAX_PIPE_PATH_LENGTH - 1); 
     dest[MAX_PIPE_PATH_LENGTH - 1] = '\0';       
@@ -95,7 +93,7 @@ int kvs_disconnect(void) {
 
   if ((freq = open (global_request_pipe,O_WRONLY))<0) exit(1);
   write_all(freq,disconnect_message,MAX_DISCONECT_MESSAGE_SIZE);
-  
+
   if ((fresp = open (global_response_pipe,O_RDONLY))<0) exit(1);
   read_all(fresp,disconnect_response,MAX_DISCONECT_RESPONSE_SIZE,&intr);
 
@@ -123,10 +121,10 @@ int kvs_subscribe(const char* key) {
   if ((freq = open (global_request_pipe,O_WRONLY))<0) exit(1);
   pad_key(padded_key,key);
   sprintf(subscribe_message,"3%s",padded_key);
-  write(freq,subscribe_message,sizeof(subscribe_message));
+  write_all(freq,subscribe_message,MAX_SUBSCRIBE_MESSAGE_SIZE);
 
   if ((fresp = open (global_response_pipe,O_RDONLY))<0) exit(1);
-  read(fresp,subscribe_response,MAX_SUBSCRIBE_RESPONSE_SIZE);
+  read_all(fresp,subscribe_response,MAX_SUBSCRIBE_RESPONSE_SIZE,&intr);
 
   printf("Server returned %c for operation: subscribe\n",subscribe_response[1]);
 
@@ -153,10 +151,10 @@ int kvs_unsubscribe(const char* key) {
   if ((freq = open (global_request_pipe,O_WRONLY))<0) exit(1);
   pad_key(padded_key,key);
   sprintf(unsubscribe_message,"4%s",padded_key);
-  write(freq,unsubscribe_message,sizeof(unsubscribe_message));
+  write_all(freq,unsubscribe_message,MAX_UNSUBSCRIBE_MESSAGE_SIZE);
 
   if ((fresp = open (global_response_pipe,O_RDONLY))<0) exit(1);
-  read(fresp,unsubscribe_response,MAX_SUBSCRIBE_RESPONSE_SIZE);
+  read_all(fresp,unsubscribe_response,MAX_UNSUBSCRIBE_RESPONSE_SIZE,&intr);
 
   printf("Server returned %c for operation: unsubscribe\n",unsubscribe_response[1]);
 
