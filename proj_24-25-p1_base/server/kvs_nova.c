@@ -112,10 +112,28 @@ char *read_pair(HashTable *ht, const char *key) {
 
 int delete_pair(HashTable *ht, const char *key) {
   int index = hash(key);
+  int fnotif;
+  char padded_key[MAX_KEY_SIZE];
+  char padded_value[MAX_VALUE_SIZE];
+  char notification[MAX_NOTIFICATION_SIZE];
+  char value[MAX_VALUE_SIZE] = "DELETED";
 
   // Search for the key node
   KeyNode *keyNode = ht->table[index];
   KeyNode *prevNode = NULL;
+
+  for(int i =0; i<MAX_NUMBER_SUB; i++){
+    if(strcmp(global_keys[i],key)==0){
+
+      pad_key_or_value(padded_key,key);
+      pad_key_or_value(padded_value,value);
+      sprintf(notification,"(%s,%s)",padded_key,padded_value);
+
+      if ((fnotif = open (notif_pipe_path,O_WRONLY))<0) exit(1);
+      write_all(fnotif,notification,MAX_NOTIFICATION_SIZE);
+      close(fnotif); 
+    }
+  }
 
   while (keyNode != NULL) {
     if (strcmp(keyNode->key, key) == 0) {

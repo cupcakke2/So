@@ -308,6 +308,24 @@ int main(int argc, char **argv) {
     return 1;
   }
 
+  /*
+  
+  Teste do pipe de notificações:
+  Aqui podem-se fazer "pré-subscrições" que depois avisam o cliente se houver escritas ou deletes dessas chaves.
+  Neste exemplo abaixo fazemos a pré-subscrição de (a,prev) e depois quando o nosso ficheiro one.job escreve e 
+  apaga a chave "a" o cliente recebe:
+
+  (a,anna)
+  (a,DELETED)
+
+  como seria de esperar, o que comprova o funcionamento do pipe de notificações.
+  
+  strncpy(global_keys[0], "a", MAX_NUMBER_SUB);
+  strncpy(global_keys[1], "prev", MAX_NUMBER_SUB);
+  
+  */
+ 
+
   jobs_directory = argv[1];
 
   char *endptr;
@@ -465,6 +483,7 @@ int main(int argc, char **argv) {
         if(already_subscribed == 0){
           strcpy(global_keys[counter_keys],subscribe_key);
           counter_keys ++;
+    
         }  
       }
       if(already_subscribed == 1){
