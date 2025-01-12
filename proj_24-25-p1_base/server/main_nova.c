@@ -419,10 +419,12 @@ int main(int argc, char **argv) {
   while(1){
 
     read_all(freq,request,MAX_REQUEST_SIZE,&intr);
+    printf("%s\n",request);
 
     if(request[0] == '2'){
 
       char disconect_response [MAX_DISCONECT_RESPONSE_SIZE];
+      printf("beep\n");
       unlink(req_pipe_path);
       unlink(reg_pipe_path);
       unlink(notif_pipe_path);

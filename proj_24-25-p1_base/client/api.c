@@ -13,6 +13,7 @@
 char global_request_pipe[MAX_PIPE_PATH_LENGTH];
 char global_response_pipe[MAX_PIPE_PATH_LENGTH];
 char global_notif_pipe[MAX_PIPE_PATH_LENGTH];
+int intr = 0;
 
 
 
@@ -90,11 +91,13 @@ int kvs_disconnect(void) {
   char disconnect_response[MAX_DISCONECT_RESPONSE_SIZE];
 
   disconnect_message[0]='2';
+  printf("antes do open\n");
   if ((freq = open (global_request_pipe,O_WRONLY))<0) exit(1);
   write_all(freq,disconnect_message,MAX_DISCONECT_MESSAGE_SIZE);
-
+  printf("%s\n",global_response_pipe);
   if ((fresp = open (global_response_pipe,O_RDONLY))<0) exit(1);
-  read(fresp,disconnect_response,MAX_DISCONECT_RESPONSE_SIZE);
+  printf("oi mate\n");
+  read_all(fresp,disconnect_response,MAX_DISCONECT_RESPONSE_SIZE,&intr);
 
   printf("Server returned %c for operation: disconnect\n",disconnect_response[1]);
 
