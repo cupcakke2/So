@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <signal.h>
 
 #include "parser.h"
 #include "api.h"
@@ -12,14 +13,42 @@
 #include "../common/io.c"
 
 int intr_m = 0;
+char req_pipe_path[MAX_PIPE_PATH_LENGTH] = "/tmp/req";
+char resp_pipe_path[MAX_PIPE_PATH_LENGTH] = "/tmp/resp";
+char notif_pipe_path[MAX_PIPE_PATH_LENGTH] = "/tmp/notif";
+
+void handle_sigint(int sig) {
+
+  sig++; //Strictly here to avoid unused parameter warning during compilation
+
+  unlink(req_pipe_path);
+  unlink(resp_pipe_path);
+  unlink(notif_pipe_path);
+
+  signal(SIGINT, SIG_DFL);  // Set the handler to default 
+  raise(SIGINT);
+}
+
+void handle_sigpipe(int sig) {
+
+  sig++; //Strictly here to avoid unused parameter warning during compilation
+
+  unlink(req_pipe_path);
+  unlink(resp_pipe_path);
+  unlink(notif_pipe_path);
+
+  signal(SIGINT, SIG_DFL);  // Set the handler to default 
+  raise(SIGINT);
+}
+
 void *notification_handler(void *arg) {
   
   char notification[MAX_NOTIFICATION_SIZE];
 
-  char *notif_pipe_path = (char *)arg;
+  char *notif_pipe = (char *)arg;
   int fnotif;
 
-  if ((fnotif = open (notif_pipe_path,O_RDONLY))<0) exit(1);
+  if ((fnotif = open (notif_pipe,O_RDONLY))<0) exit(1);
 
   while (1) {
     ssize_t bytes_read = read_all(fnotif,notification,MAX_NOTIFICATION_SIZE,&intr_m);
@@ -44,9 +73,6 @@ int main(int argc, char* argv[]) {
   }
 
   char reg_pipe_path[MAX_PIPE_PATH_LENGTH] = "/tmp/";
-  char req_pipe_path[MAX_PIPE_PATH_LENGTH] = "/tmp/req";
-  char resp_pipe_path[MAX_PIPE_PATH_LENGTH] = "/tmp/resp";
-  char notif_pipe_path[MAX_PIPE_PATH_LENGTH] = "/tmp/notif";
   char connect_response[MAX_CONNECT_RESPONSE_SIZE];
   char keys[MAX_NUMBER_SUB][MAX_STRING_SIZE] = {0};
   unsigned int delay_ms;
@@ -82,7 +108,17 @@ int main(int argc, char* argv[]) {
     fprintf(stderr, "Failed to create notification handler thread\n");
     return 1;
   }
-  
+
+  if (signal(SIGINT,handle_sigint) == SIG_ERR) {
+    perror("Unable to handle SIGINT");
+    exit(1);
+  }
+ 
+  if (signal(SIGPIPE,handle_sigpipe) == SIG_ERR) {
+    perror("Unable to handle_sigpipe");
+    exit(1);
+  }
+
   while (1) {
     switch (get_next(STDIN_FILENO)) {
       case CMD_DISCONNECT:
@@ -148,5 +184,4 @@ int main(int argc, char* argv[]) {
         break;
     }
   }
-  
 }

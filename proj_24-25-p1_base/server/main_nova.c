@@ -17,9 +17,7 @@
 #include "pthread.h"
 #include <errno.h>
 #include <time.h>
-
-
-
+#include <signal.h>
 
 struct SharedData {
   DIR *dir;
@@ -45,6 +43,36 @@ char notif_pipe_path[MAX_PIPE_PATH_LENGTH];
 int fresp; 
 int intr = 0;
 int counter_keys = 0;
+
+void handle_sigusr1(int sig) {
+
+  sig++;//Strictly here to avoid unused parameter warning during compilation
+
+  for(int i = 0; i<MAX_NUMBER_SUB; i++){
+    memset(global_keys[i], 0, MAX_STRING_SIZE);
+  }
+
+  unlink(notif_pipe_path);
+  unlink(resp_pipe_path);
+}
+
+void handle_sigint(int sig) {
+
+  sig++; //Strictly here to avoid unused parameter warning during compilation
+
+  unlink(req_pipe_path);
+  unlink(reg_pipe_path);
+  unlink(resp_pipe_path);
+  unlink(notif_pipe_path);
+
+  for(int i = 0; i<MAX_NUMBER_SUB; i++){
+    memset(global_keys[i], 0, MAX_STRING_SIZE);
+  }
+
+  signal(SIGINT, SIG_DFL);  // Set the handler to default 
+  raise(SIGINT);
+}
+
 
 
 int filter_job_files(const struct dirent *entry) {
@@ -291,9 +319,7 @@ static void dispatch_threads(DIR *dir) {
     fprintf(stderr, "Failed to destroy directory_mutex\n");
   }
 
-
   free(threads);
-  
   
 }
 
@@ -319,7 +345,7 @@ int main(int argc, char **argv) {
   (a,DELETED)
 
   como seria de esperar, o que comprova o funcionamento do pipe de notificações.
-  
+
   strncpy(global_keys[0], "a", MAX_NUMBER_SUB);
   strncpy(global_keys[1], "prev", MAX_NUMBER_SUB);
   
@@ -421,12 +447,29 @@ int main(int argc, char **argv) {
     return 0;
   }
 
+
   dispatch_threads(dir);
 
   if (closedir(dir) == -1) {
     fprintf(stderr, "Failed to close directory\n");
     return 0;
   }
+
+  if (signal(SIGUSR1, handle_sigusr1) == SIG_ERR) {
+    perror("Unable to catch SIGUSR1");
+    exit(1);
+  }
+
+  if (signal(SIGPIPE, SIG_IGN) == SIG_ERR) {
+    perror("Unable to ignore SIG_PIPE");
+    exit(1);
+  }
+
+   if (signal(SIGINT,handle_sigint) == SIG_ERR) {
+    perror("Unable to ignore SIG_PIPE");
+    exit(1);
+  }
+
 
   int freq;
   char request[MAX_REQUEST_SIZE];
