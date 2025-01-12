@@ -17,6 +17,7 @@ char global_notif_pipe[MAX_PIPE_PATH_LENGTH];
 //Variable used in read_all 
 int intr = 0;
 
+//Pads pipe path with '\0' until it has 40 characters
 void pad_pipe_path(char* dest, const char* src) {
     strncpy(dest, src,  MAX_PIPE_PATH_LENGTH - 1); 
     dest[MAX_PIPE_PATH_LENGTH - 1] = '\0';       
@@ -25,6 +26,7 @@ void pad_pipe_path(char* dest, const char* src) {
     }
 }
 
+//Pads key with '\0' until it has 40 characters + '\0'
 void pad_key(char* dest, const char* src) {
     strncpy(dest, src,  MAX_KEY_SIZE - 1); 
     dest[MAX_KEY_SIZE - 1] = '\0';       
@@ -33,7 +35,7 @@ void pad_key(char* dest, const char* src) {
     }
 }
 
-
+//Builds req, resp and notif pipes and sends connection message to the server
 int kvs_connect(char const* req_pipe_path, char const* resp_pipe_path, char const* reg_pipe_path,
                 char const* notif_pipe_path) {
 
@@ -87,17 +89,17 @@ int kvs_connect(char const* req_pipe_path, char const* resp_pipe_path, char cons
 int kvs_disconnect(void) {
 
   int freq,fresp;
-  char disconnect_message[MAX_DISCONECT_MESSAGE_SIZE];
-  char disconnect_response[MAX_DISCONECT_RESPONSE_SIZE];
+  char disconnect_message[MAX_DISCONNECT_MESSAGE_SIZE];
+  char disconnect_response[MAX_DISCONNECT_RESPONSE_SIZE];
 
   disconnect_message[0]='2';
   disconnect_message[1]='\0';
 
   if ((freq = open (global_request_pipe,O_WRONLY))<0) exit(1);
-  write_all(freq,disconnect_message,MAX_DISCONECT_MESSAGE_SIZE);
+  write_all(freq,disconnect_message,MAX_DISCONNECT_MESSAGE_SIZE);
 
   if ((fresp = open (global_response_pipe,O_RDONLY))<0) exit(1);
-  read_all(fresp,disconnect_response,MAX_DISCONECT_RESPONSE_SIZE,&intr);
+  read_all(fresp,disconnect_response,MAX_DISCONNECT_RESPONSE_SIZE,&intr);
 
   printf("Server returned %c for operation: disconnect\n",disconnect_response[1]);
 
@@ -112,8 +114,9 @@ int kvs_disconnect(void) {
   }
 }
 
+// send subscribe message to request pipe and wait for response in response pipe
 int kvs_subscribe(const char* key) {
-  // send subscribe message to request pipe and wait for response in response pipe
+  
   int freq,fresp;
   char subscribe_message[MAX_SUBSCRIBE_MESSAGE_SIZE];
   char subscribe_response[MAX_SUBSCRIBE_RESPONSE_SIZE];
@@ -141,9 +144,8 @@ int kvs_subscribe(const char* key) {
   }
 }
 
+// send unsubscribe message to request pipe and wait for response in response pipe
 int kvs_unsubscribe(const char* key) {
-    // send unsubscribe message to request pipe and wait for response in response pipe
-    // send subscribe message to request pipe and wait for response in response pipe
   int freq,fresp;
   char unsubscribe_message[MAX_UNSUBSCRIBE_MESSAGE_SIZE];
   char unsubscribe_response[MAX_UNSUBSCRIBE_RESPONSE_SIZE];

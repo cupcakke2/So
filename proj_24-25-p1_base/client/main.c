@@ -12,11 +12,13 @@
 #include "../common/io.h"
 #include "../common/io.c"
 
-int intr_m = 0;
+int intr_m = 0; //Variable set to 1 if read_all is interrupted
 char req_pipe_path[MAX_PIPE_PATH_LENGTH] = "/tmp/req";
 char resp_pipe_path[MAX_PIPE_PATH_LENGTH] = "/tmp/resp";
 char notif_pipe_path[MAX_PIPE_PATH_LENGTH] = "/tmp/notif";
+pthread_t notif_thread; //main thread to handle the notification pipe
 
+//Handles a crt+C in the client terminal by closing req, resp and notif path before proceding with the usual SIGINT, we also end the notif thread
 void handle_sigint(int sig) {
 
   sig++; //Strictly here to avoid unused parameter warning during compilation
@@ -25,10 +27,19 @@ void handle_sigint(int sig) {
   unlink(resp_pipe_path);
   unlink(notif_pipe_path);
 
+  //Ending notification thread
+  if (pthread_cancel(notif_thread)) {
+    return ;
+  }
+
   signal(SIGINT, SIG_DFL);  // Set the handler to default 
   raise(SIGINT);
 }
 
+//Similar to the handling of sigint. When a SIGURS1 is received the resp and notif pipes are destroyed leading to a SIGPIPE
+//We use this to terminate the client in that case.
+//Another possible SIGPIPE is when the server destroys the reg pipe, hence the need to also unlink the req,resp and notif pipes.
+//We also end the notif thread here
 void handle_sigpipe(int sig) {
 
   sig++; //Strictly here to avoid unused parameter warning during compilation
@@ -37,10 +48,16 @@ void handle_sigpipe(int sig) {
   unlink(resp_pipe_path);
   unlink(notif_pipe_path);
 
+  //Ending notification thread
+  if (pthread_cancel(notif_thread)) {
+    return ;
+  }
+
   signal(SIGINT, SIG_DFL);  // Set the handler to default 
   raise(SIGINT);
 }
 
+//Function used by the second thread of the client to handle overwritten/deleted keys that are sent trough the notif pipe
 void *notification_handler(void *arg) {
   
   char notification[MAX_NOTIFICATION_SIZE];
@@ -94,7 +111,7 @@ int main(int argc, char* argv[]) {
   }
 
   
-  // TODO open pipes
+  //Opening pipes
   if ((freq = open (req_pipe_path,O_RDWR))<0) exit(1);
   if ((fresp = open (resp_pipe_path,O_RDONLY))<0) exit(1);
   if ((fnotif = open (notif_pipe_path,O_RDWR))<0) exit(1);
@@ -103,17 +120,19 @@ int main(int argc, char* argv[]) {
 
   printf("Server returned %c for operation: connect\n",connect_response[1]);
 
-  pthread_t notif_thread; //main thread to handle the notification pipe
+  
   if (pthread_create(&notif_thread, NULL, notification_handler, (void *)notif_pipe_path)) {
     fprintf(stderr, "Failed to create notification handler thread\n");
     return 1;
   }
 
+  //Handling SIGINT
   if (signal(SIGINT,handle_sigint) == SIG_ERR) {
     perror("Unable to handle SIGINT");
     exit(1);
   }
  
+  //Handling SIGPIPE
   if (signal(SIGPIPE,handle_sigpipe) == SIG_ERR) {
     perror("Unable to handle_sigpipe");
     exit(1);
@@ -123,13 +142,18 @@ int main(int argc, char* argv[]) {
     switch (get_next(STDIN_FILENO)) {
       case CMD_DISCONNECT:
       
-        printf("No disconnect\n");
         if (kvs_disconnect()) {
           fprintf(stderr, "Failed to disconnect to the server\n");
           return 1;
         }
-        // TODO: end notifications thread
+      
         printf("Disconnected from server\n");
+
+        //Ending notification thread
+        if (pthread_cancel(notif_thread)) {
+            fprintf(stderr, "Error canceling thread\n");
+            return 1;
+        }
         return 0;
 
       case CMD_SUBSCRIBE:

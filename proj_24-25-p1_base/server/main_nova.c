@@ -47,7 +47,7 @@ void handle_sigusr1(int sig) {
   sig++;//Strictly here to avoid unused parameter warning during compilation
 
   for(int i = 0; i<MAX_NUMBER_SUB; i++){
-    memset(global_keys[i], 0, MAX_STRING_SIZE);
+    memset(global_keys[i], 0, MAX_STRING_SIZE); //memset is async-signal safe!
   }
 
   unlink(notif_pipe_path);
