@@ -284,6 +284,11 @@ static void *get_file(void *arguments) {
 }
 
 static void dispatch_threads(DIR *dir) {
+
+  char connect_message[MAX_CONNECT_MESSAGE_SIZE]; 
+  char connect_response[MAX_CONNECT_RESPONSE_SIZE];
+  char connect_opcode;
+  int freg;
   
   pthread_t *threads = malloc(max_threads * sizeof(pthread_t));
 
@@ -292,8 +297,7 @@ static void dispatch_threads(DIR *dir) {
     return;
   }
 
-  struct SharedData thread_data = {dir, jobs_directory,
-                                   PTHREAD_MUTEX_INITIALIZER};
+  struct SharedData thread_data = {dir, jobs_directory, PTHREAD_MUTEX_INITIALIZER};
 
   for (size_t i = 0; i < max_threads; i++) {
     if (pthread_create(&threads[i], NULL, get_file, (void *)&thread_data) !=
@@ -304,6 +308,46 @@ static void dispatch_threads(DIR *dir) {
       return;
     }
   }
+
+  if((freg = open(reg_pipe_path, O_RDWR)) < 0) exit(1);
+
+  if(read_all(freg,connect_message,MAX_CONNECT_MESSAGE_SIZE,&intr) == -1){
+    fprintf(stderr,"Failed to read from register pipe\n");
+    return;
+  }
+
+  close(freg);
+
+  for(size_t i = 0; i< sizeof(connect_message); i++){
+        if (i == 0) {
+            connect_opcode = connect_message[i];
+        }
+        else if (i>0 && i<=40){
+            req_pipe_path[i-1] = connect_message[i];
+        }
+        else if (i>=41 && i<=80){
+            resp_pipe_path[i-41] = connect_message[i];
+        }
+        else if (i>=81 && i<=120){
+            notif_pipe_path[i-81] = connect_message[i];
+        }
+    }
+   
+  connect_response[0]=connect_opcode;
+
+  if(sizeof(connect_message)!=121){
+    connect_response[1]='1';
+  }else{
+    connect_response[1]='0';
+  }
+
+  connect_response[2]='\0';
+
+
+  if ((fresp = open (resp_pipe_path,O_WRONLY))<0) exit(1);
+
+  write_all(fresp,connect_response,MAX_CONNECT_RESPONSE_SIZE);
+  close(fresp);
 
   for (unsigned int i = 0; i < max_threads; i++) {
     if (pthread_join(threads[i], NULL) != 0) {
@@ -355,10 +399,7 @@ int main(int argc, char **argv) {
   jobs_directory = argv[1];
 
   char *endptr;
-  char connect_message[MAX_CONNECT_MESSAGE_SIZE]; 
-  char connect_response[MAX_CONNECT_RESPONSE_SIZE];
-  char connect_opcode;
-  int freg;
+  
   max_backups = strtoul(argv[3], &endptr, 10);
   
 
@@ -396,45 +437,6 @@ int main(int argc, char **argv) {
 
   if(mkfifo(reg_pipe_path, 0777) < 0) exit (1);
 
-  if((freg = open(reg_pipe_path, O_RDWR)) < 0) exit(1);
-
-
-  // ler do FIFO de registo
-  if(read_all(freg,connect_message,MAX_CONNECT_MESSAGE_SIZE,&intr) == -1){
-    fprintf(stderr,"Failed to read from register pipe\n");
-    return 1;
-  }
-
-  for(size_t i = 0; i< sizeof(connect_message); i++){
-        if (i == 0) {
-            connect_opcode = connect_message[i];
-        }
-        else if (i>0 && i<=40){
-            req_pipe_path[i-1] = connect_message[i];
-        }
-        else if (i>=41 && i<=80){
-            resp_pipe_path[i-41] = connect_message[i];
-        }
-        else if (i>=81 && i<=120){
-            notif_pipe_path[i-81] = connect_message[i];
-        }
-    }
-   
-  connect_response[0]=connect_opcode;
-
-  if(sizeof(connect_message)!=121){
-    connect_response[1]='1';
-  }else{
-    connect_response[1]='0';
-  }
-
-  connect_response[2]='\0';
-
-
-  if ((fresp = open (resp_pipe_path,O_WRONLY))<0) exit(1);
-
-  write_all(fresp,connect_response,MAX_CONNECT_RESPONSE_SIZE);
-  close(fresp);
 
   if (kvs_init()) {
     write_str(STDERR_FILENO, "Failed to initialize KVS\n");
