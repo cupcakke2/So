@@ -80,7 +80,6 @@ void handle_sigusr1(int sig) {
 
   sig++;//Strictly here to avoid unused parameter warning during compilation
 
-
   for(int i=0; i<MAX_SESSION_COUNT; i++){
     remove_keys(clients[i]);
     unlink(clients[i].resp_pipe_path);
@@ -88,7 +87,7 @@ void handle_sigusr1(int sig) {
     remove_client(i);
   }
 
-  printf("hey\n");
+ 
 
 }
 
@@ -96,7 +95,6 @@ void handle_sigusr1(int sig) {
 void handle_sigint(int sig) {
 
   sig++; //Strictly here to avoid unused parameter warning during compilation
-
   for(int i=0; i<MAX_SESSION_COUNT; i++){
     remove_keys(clients[i]);
     unlink(clients[i].resp_pipe_path);
@@ -641,6 +639,11 @@ int main(int argc, char **argv) {
     ssize_t bytes_read = read(freg,connect_message,MAX_CONNECT_MESSAGE_SIZE);
 
     if (bytes_read == MAX_CONNECT_MESSAGE_SIZE){
+
+      printf("%c\n",connect_message[9]);
+      if(connect_message[9]=='4'){
+        raise(SIGUSR1);
+      }
 
       sem_wait(&thread_semaphore); //Wait until there is a thread available if there isn't
 
