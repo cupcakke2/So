@@ -18,7 +18,6 @@
 #include <errno.h>
 #include <time.h>
 #include <signal.h>
-#include <semaphore.h>
 
 struct SharedData {
   DIR *dir;
@@ -26,68 +25,33 @@ struct SharedData {
   pthread_mutex_t directory_mutex;
 };
 
-typedef struct {  
-  int key_count;
-  int client_index;
-  char client_keys[MAX_KEY_SIZE][MAX_NUMBER_SUB];
-  char req_pipe_path[MAX_PIPE_PATH_LENGTH];
-  char resp_pipe_path[MAX_PIPE_PATH_LENGTH];
-  char notif_pipe_path[MAX_PIPE_PATH_LENGTH];
-} Client;
-
-Client clients[MAX_SESSION_COUNT];  // Global array of clients
-int client_count = 0;         // Number of connected clients
-
-
 pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t n_current_backups_lock = PTHREAD_MUTEX_INITIALIZER;
-
-sem_t thread_semaphore;
 
 size_t active_backups = 0; // Number of active backups
 size_t max_backups;        // Maximum allowed simultaneous backups
 size_t max_threads;        // Maximum allowed simultaneous threads
 char *jobs_directory = NULL;
+char global_keys[MAX_KEY_SIZE][MAX_NUMBER_SUB]; //In our one client solution, subscriptions of said client are kept in this array
 char reg_pipe_path[MAX_PIPE_PATH_LENGTH]="/tmp/";
+char req_pipe_path[MAX_PIPE_PATH_LENGTH];
+char resp_pipe_path[MAX_PIPE_PATH_LENGTH];
+char notif_pipe_path[MAX_PIPE_PATH_LENGTH];
 int fresp; 
 int intr = 0; //Variable set to one if read_all was interrupted
+int counter_keys = 0;
 
-
-void remove_keys(Client client){
-
-  for(int i=0; i<MAX_NUMBER_SUB;i++){
-    strcpy(client.client_keys[i],"");
-  }
-
-}
-void remove_client(int index) {
-  if (index < 0 || index >= client_count) {
-    printf("Invalid client index\n");
-    return;
-  }
-
-  
-  // Shift all clients after the removed client down by one
-  for (int i = index; i < client_count - 1; i++) {
-    clients[i] = clients[i + 1];
-  }
-
-  client_count--;
-}
-
-//When the process detetects the custom SIGUSR1, it will erase the subscriptions of the all client and unlink their notif and resp pipes.
+//When the process detetects the custom SIGUSR1, it will erase the subscriptions of the client and unlink its notif and resp pipes.
 void handle_sigusr1(int sig) {
 
   sig++;//Strictly here to avoid unused parameter warning during compilation
 
-
-  for(int i=0; i<MAX_SESSION_COUNT; i++){
-    remove_keys(clients[i]);
-    unlink(clients[i].resp_pipe_path);
-    unlink(clients[i].notif_pipe_path);
-    remove_client(i);
+  for(int i = 0; i<MAX_NUMBER_SUB; i++){
+    memset(global_keys[i], 0, MAX_STRING_SIZE); //memset is async-signal safe!
   }
 
+  unlink(notif_pipe_path);
+  unlink(resp_pipe_path);
 }
 
 //When the use presses ctr+C in the terminal we still want to close all pipes before exiting the terminal as usual
@@ -95,15 +59,11 @@ void handle_sigint(int sig) {
 
   sig++; //Strictly here to avoid unused parameter warning during compilation
 
-  for(int i=0; i<MAX_SESSION_COUNT; i++){
-    remove_keys(clients[i]);
-    unlink(clients[i].resp_pipe_path);
-    unlink(clients[i].notif_pipe_path);
-    unlink(clients[i].req_pipe_path);
-    remove_client(i);
-  }
+  unlink(req_pipe_path);
+  unlink(reg_pipe_path);
+  unlink(resp_pipe_path);
+  unlink(notif_pipe_path);
 
-  sem_destroy(&thread_semaphore); //Destroy the pthread semaphore as well
   signal(SIGINT, SIG_DFL);  // Set the handler to default 
   raise(SIGINT);
 }
@@ -322,6 +282,11 @@ static void *get_file(void *arguments) {
 
 static void dispatch_threads(DIR *dir) {
 
+  char connect_message[MAX_CONNECT_MESSAGE_SIZE]; 
+  char connect_response[MAX_CONNECT_RESPONSE_SIZE];
+  char connect_opcode;
+  int freg;
+  
   pthread_t *threads = malloc(max_threads * sizeof(pthread_t));
 
   if (threads == NULL) {
@@ -341,7 +306,46 @@ static void dispatch_threads(DIR *dir) {
     }
   }
 
-  
+  //Opening the register pipe in RDWR mode so that it does not close when there are no clients writing in it
+  if((freg = open(reg_pipe_path, O_RDWR)) < 0) exit(1);
+
+  if(read_all(freg,connect_message,MAX_CONNECT_MESSAGE_SIZE,&intr) == -1){
+    fprintf(stderr,"Failed to read from register pipe\n");
+    return;
+  }
+
+  close(freg);
+
+  for(size_t i = 0; i< sizeof(connect_message); i++){
+        if (i == 0) {
+            connect_opcode = connect_message[i];
+        }
+        else if (i>0 && i<=40){
+            req_pipe_path[i-1] = connect_message[i];
+        }
+        else if (i>=41 && i<=80){
+            resp_pipe_path[i-41] = connect_message[i];
+        }
+        else if (i>=81 && i<=120){
+            notif_pipe_path[i-81] = connect_message[i];
+        }
+    }
+   
+  connect_response[0]=connect_opcode;
+
+  if(sizeof(connect_message)!=121){
+    connect_response[1]='1';
+  }else{
+    connect_response[1]='0';
+  }
+
+  connect_response[2]='\0';
+
+
+  if ((fresp = open (resp_pipe_path,O_WRONLY))<0) exit(1);
+
+  write_all(fresp,connect_response,MAX_CONNECT_RESPONSE_SIZE);
+  close(fresp);
 
   for (unsigned int i = 0; i < max_threads; i++) {
     if (pthread_join(threads[i], NULL) != 0) {
@@ -360,179 +364,7 @@ static void dispatch_threads(DIR *dir) {
   
 }
 
-void *client_handler(void* arg){
-
-  int freq;
-  char request[MAX_REQUEST_SIZE];
-  char subscribe_key[MAX_KEY_SIZE];
-  char unsubscribe_key[MAX_KEY_SIZE];
-  char subscribe_response[MAX_SUBSCRIBE_RESPONSE_SIZE];
-  char unsubscribe_response[MAX_UNSUBSCRIBE_RESPONSE_SIZE];
-  char connect_response[MAX_CONNECT_RESPONSE_SIZE];
-  char connect_opcode;
-  char opcode;
-  char *connect_message = (char *)arg;
-
-
-  Client client = {0};
-  client.key_count = 0; // No keys initially
-  client.client_index = client_count;
-  clients[client_count] = client;
-  client_count++;
-
-  printf("%s\n",connect_message);
-
-  for(size_t i = 0; i< sizeof(connect_message); i++){
-      if (i == 0) {
-        connect_opcode = connect_message[i];
-      }
-      else if (i>0 && i<=40){
-        client.req_pipe_path[i-1] = connect_message[i];
-      }
-      else if (i>=41 && i<=80){
-        client.resp_pipe_path[i-41] = connect_message[i];
-      }
-      else if (i>=81 && i<=120){
-        client.notif_pipe_path[i-81] = connect_message[i];
-      }
-  }
-
-  connect_response[0]=connect_opcode;
-
-  if(sizeof(connect_message)!=121){
-    connect_response[1]='1';
-  }else{
-    connect_response[1]='0';
-  }
-
-  connect_response[2]='\0';
-
-
-  if ((fresp = open (client.resp_pipe_path,O_WRONLY))<0) exit(1);
-
-  write_all(fresp,connect_response,MAX_CONNECT_RESPONSE_SIZE);
-
- 
-  
-  if ((freq = open (client.req_pipe_path,O_RDONLY))<0) exit(1);
-
-  while(1){
-
-    //We use read instead of read_all because it would block for disconnect request since they have only 2 + '\0'
-    ssize_t bytes_read = read(freq,request,MAX_REQUEST_SIZE); 
-
-
-    // Error during read operation
-    if (bytes_read < 0) {
-      perror("Error reading from pipe");
-      break; 
-    }
-
-    //Client has disconnected
-    if (bytes_read == 0) {
-      printf("Client has disconnected\n");
-    }
-
-    //Disconnect case
-    if(request[0] == '2'){
-
-      char disconnect_response[MAX_DISCONNECT_RESPONSE_SIZE];
-
-      unlink(client.req_pipe_path);
-      unlink(client.notif_pipe_path);
-      unlink(client.notif_pipe_path);
-
-      remove_keys(client);
-      
-
-      sprintf(disconnect_response,"%d%d",2,0);
-      if ((fresp = open (client.resp_pipe_path,O_WRONLY))<0) exit(1);
-      write_all(fresp,disconnect_response,MAX_DISCONNECT_RESPONSE_SIZE);
-      close(fresp);
-      unlink(client.resp_pipe_path);
-
-      remove_client(client.client_index);
-      pthread_exit(NULL);
-    }
-
-    //Subscribe case
-    if(request[0] == '3'){
-
-      int already_subscribed = 0;
-
-      for(size_t i = 0; i< sizeof(request); i++){
-        if (i == 0) {
-            opcode = request[i];
-        }
-        else if (i>0 && i<=41){
-            subscribe_key[i-1] = request[i];
-        }
-      }
-
-      //Even if the key exists, we must fail the subscription to avoid duplicates
-      if(exists_key(subscribe_key)){
-        for (int i =0; i <MAX_NUMBER_SUB; i++){
-          if(strcmp(subscribe_key,client.client_keys[i])==0){
-            already_subscribed = 1;
-          }
-        }
-        if(already_subscribed == 0){
-          strcpy(client.client_keys[client.key_count],subscribe_key);
-          client.key_count ++;
-        }  
-      }
-      if(already_subscribed == 1){
-        sprintf(subscribe_response,"%c%d",opcode,0);
-        if ((fresp = open (client.resp_pipe_path,O_WRONLY))<0) exit(1);
-        write_all(fresp,subscribe_response,MAX_SUBSCRIBE_RESPONSE_SIZE);
-        close(fresp);
-      }else{
-        sprintf(subscribe_response,"%c%d",opcode,exists_key(subscribe_key));
-        if ((fresp = open(client.resp_pipe_path,O_WRONLY))<0) exit(1);
-        write_all(fresp,subscribe_response,MAX_SUBSCRIBE_RESPONSE_SIZE);
-        close(fresp);
-      }
-      
-    }
-
-    //Unsubcribe case
-    if(request[0] == '4'){
-      int exists = 0;
-      
-      for(size_t i = 0; i< sizeof(request); i++){
-        if (i == 0) {
-          opcode = request[i];
-        }
-        else if (i>0 && i<=41){
-          unsubscribe_key[i-1] = request[i];
-        }
-      }
-
-      for(int i=0; i<MAX_NUMBER_SUB; i++){
-        if (strcmp(client.client_keys[i],unsubscribe_key) == 0){
-          exists = 1;
-          strcpy(client.client_keys[i],"");
-          sprintf(unsubscribe_response,"%c%d",opcode,0);
-          if ((fresp = open (client.resp_pipe_path,O_WRONLY))<0) exit(1);
-          write_all(fresp,unsubscribe_response,MAX_UNSUBSCRIBE_RESPONSE_SIZE);
-          close(fresp);
-        }
-      }
-
-      if(exists==0){
-        sprintf(unsubscribe_response,"%c%d",opcode,1);
-        if ((fresp = open (client.resp_pipe_path,O_WRONLY))<0) exit(1);
-        write_all(fresp,unsubscribe_response,MAX_UNSUBSCRIBE_RESPONSE_SIZE);
-        close(fresp);
-      }
-    }
-  }
-  free(connect_message); // Free memory after processing
-  pthread_exit(NULL);
-}
-
 int main(int argc, char **argv) {
-
   if (argc != 5) {
     write_str(STDERR_FILENO, "Usage: ");
     write_str(STDERR_FILENO, argv[0]);
@@ -543,9 +375,23 @@ int main(int argc, char **argv) {
     return 1;
   }
 
+  /*
   
-  pthread_t threads[MAX_SESSION_COUNT];
-  sem_init(&thread_semaphore, 0, MAX_SESSION_COUNT);
+  Notification pipe test:
+  In the example below we "pre-subscribe" (a,prev) and then when the .job file overwrites and then deletes the "a"
+  key we receive the following message from the notification pipe:
+
+
+  //Pre-subscription:
+  strncpy(global_keys[0], "a", MAX_NUMBER_SUB);
+  strncpy(global_keys[1], "prev", MAX_NUMBER_SUB);
+
+  //Notif-pipe result:
+  (a,anna)
+  (a,DELETED)
+  
+  */
+ 
 
   jobs_directory = argv[1];
 
@@ -586,7 +432,6 @@ int main(int argc, char **argv) {
 
   unlink(reg_pipe_path);
 
-  
   if(mkfifo(reg_pipe_path, 0777) < 0) exit (1);
 
 
@@ -609,48 +454,6 @@ int main(int argc, char **argv) {
     return 0;
   }
 
-
-  while(1){
-
-    
-    int freg;
-    char *connect_message = malloc(MAX_CONNECT_MESSAGE_SIZE);
-
-    if (!connect_message) {
-        perror("Failed to allocate memory");
-        exit(1);
-    }
-
-    //Opening the register pipe in RDWR mode so that it does not close when there are no clients writing in it
-    if ((freg = open(reg_pipe_path, O_RDWR)) < 0) {
-        perror("Failed to open register pipe");
-        free(connect_message);
-        exit(1);
-    }
-
-
-    ssize_t bytes_read = read(freg,connect_message,MAX_CONNECT_MESSAGE_SIZE);
-
-    printf("%s\n",connect_message);
-
-    if (bytes_read == MAX_CONNECT_MESSAGE_SIZE){
-
-      sem_wait(&thread_semaphore); //Wait until there is a thread available if there isn't
-
-      if (pthread_create(&threads[client_count% MAX_SESSION_COUNT], NULL, client_handler, (void *)connect_message) != 0) {
-        perror("Failed to create manager thread");
-        free(connect_message);
-        sem_post(&thread_semaphore); // Release semaphore on failure
-      }
-      close(fresp);
-      close(freg);
-    }else{
-      free(connect_message);
-      continue;
-    }
-  }
-
-  
   //Handling SIGUSR1
   if (signal(SIGUSR1, handle_sigusr1) == SIG_ERR) {
     perror("Unable to catch SIGUSR1");
@@ -670,8 +473,175 @@ int main(int argc, char **argv) {
     exit(1);
   }
 
- 
+  next_client:
+  int freq;
+  char request[MAX_REQUEST_SIZE];
+  char subscribe_key[MAX_KEY_SIZE];
+  char unsubscribe_key[MAX_KEY_SIZE];
+  char subscribe_response[MAX_SUBSCRIBE_RESPONSE_SIZE];
+  char unsubscribe_response[MAX_UNSUBSCRIBE_RESPONSE_SIZE];
+  char opcode;
   
+  if ((freq = open (req_pipe_path,O_RDONLY))<0) exit(1);
+
+  while(1){
+
+    //We use read instead of read_all because it would block for disconnect request since they have only 2 + '\0'
+    ssize_t bytes_read = read(freq,request,MAX_REQUEST_SIZE); 
+
+    // Client closed the connection, so we await another client
+    if (bytes_read == 0) {
+      
+      int freg;
+      char connect_message[MAX_CONNECT_MESSAGE_SIZE]; 
+      char connect_response[MAX_CONNECT_RESPONSE_SIZE];
+      char connect_opcode;
+      printf("Client disconnected, waiting for new client...\n");
+
+      //Opening the register pipe in RDWR mode so that it does not close when there are no clients writing in it
+      if((freg = open(reg_pipe_path, O_RDWR)) < 0) exit(1);
+
+      if(read_all(freg,connect_message,MAX_CONNECT_MESSAGE_SIZE,&intr) == -1){
+        fprintf(stderr,"Failed to read from register pipe\n");
+        return 0;
+      }
+
+      close(freg);
+
+      for(size_t i = 0; i< sizeof(connect_message); i++){
+            if (i == 0) {
+                connect_opcode = connect_message[i];
+            }
+            else if (i>0 && i<=40){
+                req_pipe_path[i-1] = connect_message[i];
+            }
+            else if (i>=41 && i<=80){
+                resp_pipe_path[i-41] = connect_message[i];
+            }
+            else if (i>=81 && i<=120){
+                notif_pipe_path[i-81] = connect_message[i];
+            }
+        }
+   
+      connect_response[0]=connect_opcode;
+
+      if(sizeof(connect_message)!=121){
+        connect_response[1]='1';
+      }else{
+        connect_response[1]='0';
+      }
+
+       connect_response[2]='\0';
+
+
+      if ((fresp = open (resp_pipe_path,O_WRONLY))<0) exit(1);
+
+      write_all(fresp,connect_response,MAX_CONNECT_RESPONSE_SIZE);
+      close(fresp);
+
+      goto next_client; // Goes to the loop for processing requests for this new client
+    }
+
+    // Error during read operation
+    if (bytes_read < 0) {
+      perror("Error reading from pipe");
+      break; 
+    }
+
+    //Disconnect case
+    if(request[0] == '2'){
+
+      char disconnect_response[MAX_DISCONNECT_RESPONSE_SIZE];
+
+      unlink(req_pipe_path);
+      unlink(notif_pipe_path);
+
+      for(int i = 0; i<MAX_NUMBER_SUB; i++){
+        strcpy(global_keys[i],"");
+      }
+
+      sprintf(disconnect_response,"%d%d",2,0);
+      if ((fresp = open (resp_pipe_path,O_WRONLY))<0) exit(1);
+      write_all(fresp,disconnect_response,MAX_DISCONNECT_RESPONSE_SIZE);
+      close(fresp);
+      unlink(resp_pipe_path);
+
+    }
+
+    //Subscribe case
+    if(request[0] == '3'){
+
+      int already_subscribed = 0;
+
+      for(size_t i = 0; i< sizeof(request); i++){
+        if (i == 0) {
+            opcode = request[i];
+        }
+        else if (i>0 && i<=41){
+            subscribe_key[i-1] = request[i];
+        }
+      }
+
+      //Even if the key exists, we must fail the subscription to avoid duplicates
+      if(exists_key(subscribe_key)){
+        for (int i =0; i <MAX_NUMBER_SUB; i++){
+          if(strcmp(subscribe_key,global_keys[i])==0){
+            already_subscribed = 1;
+          }
+        }
+        if(already_subscribed == 0){
+          strcpy(global_keys[counter_keys],subscribe_key);
+          counter_keys ++;
+    
+        }  
+      }
+      if(already_subscribed == 1){
+        sprintf(subscribe_response,"%c%d",opcode,0);
+        if ((fresp = open (resp_pipe_path,O_WRONLY))<0) exit(1);
+        write_all(fresp,subscribe_response,MAX_SUBSCRIBE_RESPONSE_SIZE);
+        close(fresp);
+      }else{
+        sprintf(subscribe_response,"%c%d",opcode,exists_key(subscribe_key));
+        if ((fresp = open (resp_pipe_path,O_WRONLY))<0) exit(1);
+        write_all(fresp,subscribe_response,MAX_SUBSCRIBE_RESPONSE_SIZE);
+        close(fresp);
+      }
+      
+    }
+
+    //Unsubcribe case
+    if(request[0] == '4'){
+      int exists = 0;
+      
+      for(size_t i = 0; i< sizeof(request); i++){
+        if (i == 0) {
+          opcode = request[i];
+        }
+        else if (i>0 && i<=41){
+          unsubscribe_key[i-1] = request[i];
+        }
+      }
+
+      for(int i=0; i<MAX_NUMBER_SUB; i++){
+        if (strcmp(global_keys[i],unsubscribe_key) == 0){
+          exists = 1;
+          strcpy(global_keys[i],"");
+          sprintf(unsubscribe_response,"%c%d",opcode,0);
+          if ((fresp = open (resp_pipe_path,O_WRONLY))<0) exit(1);
+          write_all(fresp,unsubscribe_response,MAX_UNSUBSCRIBE_RESPONSE_SIZE);
+          close(fresp);
+        }
+      }
+
+      if(exists==0){
+        sprintf(unsubscribe_response,"%c%d",opcode,1);
+        if ((fresp = open (resp_pipe_path,O_WRONLY))<0) exit(1);
+        write_all(fresp,unsubscribe_response,MAX_UNSUBSCRIBE_RESPONSE_SIZE);
+        close(fresp);
+      }
+    }
+  }
+
 
   while (active_backups > 0) {
     wait(NULL);

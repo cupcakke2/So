@@ -17,17 +17,6 @@ typedef struct HashTable {
   pthread_rwlock_t tablelock;
 } HashTable;
 
-typedef struct {  
-  int key_count;
-  int client_id;
-  int client_index;
-  char client_keys[MAX_KEY_SIZE][MAX_NUMBER_SUB];
-  char req_pipe_path[MAX_PIPE_PATH_LENGTH];
-  char resp_pipe_path[MAX_PIPE_PATH_LENGTH];
-  char notif_pipe_path[MAX_PIPE_PATH_LENGTH];
-} Client;
-
-
 /// Creates a new KVS hash table.
 /// @return Newly created hash table, NULL on failure
 struct HashTable *create_hash_table();

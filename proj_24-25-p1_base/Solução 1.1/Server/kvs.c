@@ -10,7 +10,9 @@
 #include "../common/constants.h"
 #include "../common/io.h"
 
-extern Client clients[MAX_SESSION_COUNT];
+
+extern char global_keys[MAX_KEY_SIZE][MAX_NUMBER_SUB];
+extern char notif_pipe_path[MAX_PIPE_PATH_LENGTH];
 
 // Hash function based on key initial.
 // @param key Lowercase alphabetical string.
@@ -58,24 +60,20 @@ int write_pair(HashTable *ht, const char *key, const char *value) {
   KeyNode *keyNode = ht->table[index];
   KeyNode *previousNode;
 
-  //Loop to check if the the key that is being written has an active subscription for all clients
+  //Loop to check if the the key that is being written has an active subscription
+  for(int i =0; i<MAX_NUMBER_SUB; i++){
+    if(strcmp(global_keys[i],key)==0){
 
-  for(int i =0; i<MAX_SESSION_COUNT; i++){
-    for(int j =0; j<MAX_NUMBER_SUB; j++){
+      pad_key_or_value(padded_key,key);
+      pad_key_or_value(padded_value,value);
+      sprintf(notification,"(%s,%s)",padded_key,padded_value);
 
-      if(strcmp(clients[i].client_keys[j],key)==0){
-
-        pad_key_or_value(padded_key,key);
-        pad_key_or_value(padded_value,value);
-        sprintf(notification,"(%s,%s)",padded_key,padded_value);
-
-        if ((fnotif = open (clients[i].notif_pipe_path,O_WRONLY))<0) exit(1);
-        write_all(fnotif,notification,MAX_NOTIFICATION_SIZE);
-        close(fnotif); 
-      }
+      if ((fnotif = open (notif_pipe_path,O_WRONLY))<0) exit(1);
+      write_all(fnotif,notification,MAX_NOTIFICATION_SIZE);
+      close(fnotif); 
     }
   }
-  
+
   while (keyNode != NULL) {
     if (strcmp(keyNode->key, key) == 0) {
       // overwrite value
@@ -126,26 +124,19 @@ int delete_pair(HashTable *ht, const char *key) {
   KeyNode *keyNode = ht->table[index];
   KeyNode *prevNode = NULL;
 
-  //Loop to see if the key being deleted has an active subscription for all clients
+  //Loop to see if the key being deleted has an active subscription
+  for(int i =0; i<MAX_NUMBER_SUB; i++){
+    if(strcmp(global_keys[i],key)==0){
 
-  for(int i =0; i<MAX_SESSION_COUNT; i++){
-    for(int j =0; j<MAX_NUMBER_SUB; j++){
+      pad_key_or_value(padded_key,key);
+      pad_key_or_value(padded_value,value);
+      sprintf(notification,"(%s,%s)",padded_key,padded_value);
 
-      if(strcmp(clients[i].client_keys[j],key)==0){
-
-        pad_key_or_value(padded_key,key);
-        pad_key_or_value(padded_value,value);
-        sprintf(notification,"(%s,%s)",padded_key,padded_value);
-
-        if ((fnotif = open (clients[i].notif_pipe_path,O_WRONLY))<0) exit(1);
-        write_all(fnotif,notification,MAX_NOTIFICATION_SIZE);
-        close(fnotif); 
-      }
-
+      if ((fnotif = open (notif_pipe_path,O_WRONLY))<0) exit(1);
+      write_all(fnotif,notification,MAX_NOTIFICATION_SIZE);
+      close(fnotif); 
     }
   }
-
-  
 
   while (keyNode != NULL) {
     if (strcmp(keyNode->key, key) == 0) {
