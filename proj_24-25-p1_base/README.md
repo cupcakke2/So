@@ -1,0 +1,1 @@
+A nossa primeira pasta possui uma solução do projeto com a etapa 1.1 com o exercício 2, ou seja, possui um server que pode atender os pedidos de um cliente ao mesmo tempo. Quando um cliente se desconecta através de ctr+c ou através do comando DISCONNECT, o servidor  imprime uma mensagem a dizer que está à espera de outro cliente. 

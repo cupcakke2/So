@@ -4,7 +4,7 @@
 #include <unistd.h>
 #include <errno.h>
 #include "io.h"
-#include "kvs_nova.h"
+#include "kvs.h"
 
 void write_str(int fd, const char *str) {
   size_t len = strlen(str);

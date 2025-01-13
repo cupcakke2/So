@@ -12,8 +12,8 @@ endif
 
 all: kvs
 
-kvs: main_nova.c constants.h io.o operations_nova.o parser.o kvs_nova.o
-	$(CC) $(CFLAGS) $(SLEEP) -o kvs main_nova.c io.o operations_nova.o parser.o kvs_nova.o
+kvs: main.c constants.h io.o operations.o parser.o kvs.o
+	$(CC) $(CFLAGS) $(SLEEP) -o kvs main.c io.o operations.o parser.o kvs.o
 
 %.o: %.c %.h
 	$(CC) $(CFLAGS) -c ${@:.o=.c}

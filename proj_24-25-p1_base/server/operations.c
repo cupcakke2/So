@@ -1,4 +1,4 @@
-#include "operations_nova.h"
+#include "operations.h"
 
 #include <fcntl.h>
 #include <stdio.h>
@@ -11,7 +11,7 @@
 #include "constants.h"
 #include "io.h"
 #include "../common/constants.h"
-#include "kvs_nova.h"
+#include "kvs.h"
 
 static struct HashTable *kvs_table = NULL;
 

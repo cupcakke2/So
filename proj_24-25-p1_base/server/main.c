@@ -12,7 +12,7 @@
 #include "../common/constants.h"
 #include "io.h"
 #include "../common/io.c"
-#include "operations_nova.h"
+#include "operations.h"
 #include "parser.h"
 #include "pthread.h"
 #include <errno.h>

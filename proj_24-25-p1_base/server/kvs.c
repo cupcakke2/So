@@ -1,4 +1,4 @@
-#include "kvs_nova.h"
+#include "kvs.h"
 
 #include <ctype.h>
 #include <stdlib.h>
