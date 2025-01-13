@@ -119,6 +119,8 @@ int main(int argc, char* argv[]) {
 
   printf("Server returned %c for operation: connect\n",connect_response[1]);
 
+
+
   
   if (pthread_create(&notif_thread, NULL, notification_handler, (void *)notif_pipe_path)) {
     fprintf(stderr, "Failed to create notification handler thread\n");

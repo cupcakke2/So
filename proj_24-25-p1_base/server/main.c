@@ -88,6 +88,8 @@ void handle_sigusr1(int sig) {
     remove_client(i);
   }
 
+  printf("hey\n");
+
 }
 
 //When the use presses ctr+C in the terminal we still want to close all pipes before exiting the terminal as usual
@@ -104,6 +106,7 @@ void handle_sigint(int sig) {
   }
 
   sem_destroy(&thread_semaphore); //Destroy the pthread semaphore as well
+  unlink(reg_pipe_path);
   signal(SIGINT, SIG_DFL);  // Set the handler to default 
   raise(SIGINT);
 }
@@ -257,8 +260,6 @@ static void *get_file(void *arguments) {
   DIR *dir = thread_data->dir;
   char *dir_name = thread_data->dir_name;
 
-  delay(100);
-
   if (pthread_mutex_lock(&thread_data->directory_mutex) != 0) {
     fprintf(stderr, "Thread failed to lock directory_mutex\n");
     return NULL;
@@ -342,7 +343,6 @@ static void dispatch_threads(DIR *dir) {
   }
 
   
-
   for (unsigned int i = 0; i < max_threads; i++) {
     if (pthread_join(threads[i], NULL) != 0) {
       fprintf(stderr, "Failed to join thread %u\n", i);
@@ -380,8 +380,11 @@ void *client_handler(void* arg){
   clients[client_count] = client;
   client_count++;
 
- 
-  
+  //Blocking manager threads from receiving SIGUSR1
+  sigset_t set;
+  sigemptyset(&set);
+  sigaddset(&set, SIGUSR1);
+  pthread_sigmask(SIG_BLOCK, &set, NULL);
 
   for(size_t i = 0; i< MAX_CONNECT_MESSAGE_SIZE; i++){
     if (i == 0) {
@@ -436,6 +439,7 @@ void *client_handler(void* arg){
     //Client has disconnected
     if (bytes_read == 0) {
       printf("Client has disconnected\n");
+      pthread_exit(NULL);
     }
 
     //Disconnect case
@@ -455,8 +459,8 @@ void *client_handler(void* arg){
       write_all(fresp,disconnect_response,MAX_DISCONNECT_RESPONSE_SIZE);
       close(fresp);
       unlink(client.resp_pipe_path);
-
       remove_client(client.client_index);
+      printf("Client has disconnected\n");
       pthread_exit(NULL);
     }
 
@@ -640,6 +644,7 @@ int main(int argc, char **argv) {
 
       sem_wait(&thread_semaphore); //Wait until there is a thread available if there isn't
 
+      //Creating manager threads
       if (pthread_create(&threads[client_count% MAX_SESSION_COUNT], NULL, client_handler, (void *)connect_message) != 0) {
         perror("Failed to create manager thread");
         free(connect_message);
@@ -672,9 +677,6 @@ int main(int argc, char **argv) {
     perror("Unable to ignore SIG_PIPE");
     exit(1);
   }
-
- 
-  
 
   while (active_backups > 0) {
     wait(NULL);
