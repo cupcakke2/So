@@ -53,6 +53,7 @@ int fresp;
 int intr = 0; //Variable set to one if read_all was interrupted
 
 
+//Removes all the keys of a client
 void remove_keys(Client client){
 
   for(int i=0; i<MAX_NUMBER_SUB;i++){
@@ -60,6 +61,8 @@ void remove_keys(Client client){
   }
 
 }
+
+//Removes a client and shifts remaing clients after the index to the left
 void remove_client(int index) {
   if (index < 0 || index >= client_count) {
     printf("Invalid client index\n");
@@ -640,11 +643,6 @@ int main(int argc, char **argv) {
 
     if (bytes_read == MAX_CONNECT_MESSAGE_SIZE){
 
-      printf("%c\n",connect_message[9]);
-      if(connect_message[9]=='4'){
-        raise(SIGUSR1);
-      }
-
       sem_wait(&thread_semaphore); //Wait until there is a thread available if there isn't
 
       //Creating manager threads
@@ -681,6 +679,7 @@ int main(int argc, char **argv) {
     exit(1);
   }
 
+  //Wait for active backups to finish
   while (active_backups > 0) {
     wait(NULL);
     active_backups--;
