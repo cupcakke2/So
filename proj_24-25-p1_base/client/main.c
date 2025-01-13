@@ -104,11 +104,6 @@ int main(int argc, char* argv[]) {
   strncat(notif_pipe_path, argv[1], strlen(argv[1]) * sizeof(char));
   strncat(reg_pipe_path, argv[2], strlen(argv[2]) * sizeof(char));
 
-  printf("%s\n",resp_pipe_path);
-  printf("%s\n",notif_pipe_path);
-  printf("%s\n",req_pipe_path);
-  
-  
  
   if(kvs_connect(req_pipe_path,resp_pipe_path,reg_pipe_path,notif_pipe_path)){
     printf("Server returned 1 for operation: connect");

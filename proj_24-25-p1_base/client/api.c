@@ -40,12 +40,10 @@ int kvs_connect(char const* req_pipe_path, char const* resp_pipe_path, char cons
                 char const* notif_pipe_path) {
 
   int freg;              
-  char message[MAX_CONNECT_MESSAGE_SIZE] = "";
+  char connect_message[MAX_CONNECT_MESSAGE_SIZE] = "";
   char padded_req[MAX_PIPE_PATH_LENGTH];
   char padded_resp[MAX_PIPE_PATH_LENGTH];
   char padded_notif[MAX_PIPE_PATH_LENGTH];
-
-  
 
   unlink(req_pipe_path);
   unlink(resp_pipe_path);
@@ -66,23 +64,23 @@ int kvs_connect(char const* req_pipe_path, char const* resp_pipe_path, char cons
   strcpy(global_response_pipe,padded_resp);
   strcpy(global_notif_pipe,padded_notif);
 
+
   size_t offset = 0;
-  memcpy(message + offset, "1", 1);  
+  memcpy(connect_message + offset, "1", 1);  
   offset += 1;
 
-  memcpy(message + offset, padded_req, sizeof(padded_req) ); 
+  memcpy(connect_message + offset, padded_req, sizeof(padded_req)); 
   offset += sizeof(padded_req);
 
-  memcpy(message + offset, padded_resp, sizeof(padded_resp) );  
+  memcpy(connect_message + offset, padded_resp, sizeof(padded_resp));  
   offset += sizeof(padded_resp);
 
-  memcpy(message + offset, padded_notif, sizeof(padded_notif));  
-  offset += sizeof(padded_notif) ;
+  memcpy(connect_message + offset, padded_notif, sizeof(padded_notif));  
+  offset += sizeof(padded_notif);
+  
 
-  printf("%s\n",message);
+  write_all(freg,connect_message,MAX_CONNECT_MESSAGE_SIZE);
   
-  
-  write_all(freg,message,MAX_CONNECT_MESSAGE_SIZE);
 
   return 0;
 }

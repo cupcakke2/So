@@ -380,26 +380,31 @@ void *client_handler(void* arg){
   clients[client_count] = client;
   client_count++;
 
-  printf("%s\n",connect_message);
+ 
+  
 
-  for(size_t i = 0; i< sizeof(connect_message); i++){
-      if (i == 0) {
-        connect_opcode = connect_message[i];
-      }
-      else if (i>0 && i<=40){
-        client.req_pipe_path[i-1] = connect_message[i];
-      }
-      else if (i>=41 && i<=80){
-        client.resp_pipe_path[i-41] = connect_message[i];
-      }
-      else if (i>=81 && i<=120){
-        client.notif_pipe_path[i-81] = connect_message[i];
-      }
+  for(size_t i = 0; i< MAX_CONNECT_MESSAGE_SIZE; i++){
+    if (i == 0) {
+      connect_opcode = connect_message[i];
+    }
+    else if (i>0 && i<=40){
+      client.req_pipe_path[i-1] = connect_message[i];
+    }
+    else if (i>=41 && i<=80){
+      client.resp_pipe_path[i-41] = connect_message[i];
+    }
+    else if (i>=81 && i<=120){
+      client.notif_pipe_path[i-81] = connect_message[i];
+    }
   }
+
+  
+ 
+ 
 
   connect_response[0]=connect_opcode;
 
-  if(sizeof(connect_message)!=121){
+  if(sizeof(connect_message)!=8){ //check if something is wrong with the pointer
     connect_response[1]='1';
   }else{
     connect_response[1]='0';
@@ -630,8 +635,6 @@ int main(int argc, char **argv) {
 
 
     ssize_t bytes_read = read(freg,connect_message,MAX_CONNECT_MESSAGE_SIZE);
-
-    printf("%s\n",connect_message);
 
     if (bytes_read == MAX_CONNECT_MESSAGE_SIZE){
 
